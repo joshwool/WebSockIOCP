@@ -1,7 +1,3 @@
-//
-// Created by joshi on 06/03/2023.
-//
-
 #ifndef WEBSOCKIOCP_BUFFER_HPP
 #define WEBSOCKIOCP_BUFFER_HPP
 

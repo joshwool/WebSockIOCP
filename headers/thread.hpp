@@ -1,7 +1,3 @@
-//
-// Created by joshi on 02/03/2023.
-//
-
 #ifndef WEBSOCKIOCP_THREAD_HPP
 #define WEBSOCKIOCP_THREAD_HPP
 

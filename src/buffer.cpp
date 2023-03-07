@@ -1,7 +1,3 @@
-//
-// Created by joshi on 06/03/2023.
-//
-
 #include <buffer.hpp>
 
 Buffer::Buffer(size_t bufSize) : m_totalSize(bufSize) {

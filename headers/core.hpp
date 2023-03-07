@@ -1,7 +1,3 @@
-//
-// Created by joshi on 24/02/2023.
-//
-
 #ifndef WEBSOCKSERVER_CORE_HPP
 #define WEBSOCKSERVER_CORE_HPP
 

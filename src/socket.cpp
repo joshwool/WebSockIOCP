@@ -1,7 +1,3 @@
-//
-// Created by joshi on 24/02/2023.
-//
-
 #include <socket.hpp>
 
 Socket::Socket() : m_handle(INVALID_SOCKET) {}
