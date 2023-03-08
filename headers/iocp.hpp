@@ -3,10 +3,10 @@
 
 #include <core.hpp>
 
-class IOCPort {
+class IoCPort {
 public:
-    IOCPort(int maxConcThreads);
-    ~IOCPort();
+    IoCPort(int maxConcThreads);
+    ~IoCPort();
     void ClosePort(); // Closes the Port
 
     bool AssignSocket(SOCKET socket, ULONG_PTR socketContext); // This function assigns a new connection with the IO Completion Port

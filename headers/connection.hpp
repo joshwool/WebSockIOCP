@@ -3,7 +3,7 @@
 
 #include <core.hpp>
 
-class IOContext;
+#include <IoContext.hpp>
 
 class Connection {
 public:
@@ -14,14 +14,16 @@ public:
 
     SOCKET GetHandle();
 
-    void CreateIOContext(Server *server);
+    void SetpIoContext(std::shared_ptr<IoContext> pIoContext);
+
+    IoContext *GetpIoContext();
 private:
     SOCKET m_handle;
 
     sockaddr m_addr;
     int m_addrlen;
 
-    std::shared_ptr<IOContext> m_pIOContext;
+    std::shared_ptr<IoContext> m_pIoContext;
 };
 
 #endif //WEBSOCKIOCP_CONNECTION_HPP

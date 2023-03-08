@@ -2,13 +2,12 @@
 #define WEBSOCKIOCP_IOCONTEXT_HPP
 
 #include <core.hpp>
+#include <buffer.hpp>
 
-class Server;
-
-class IOContext {
+class IoContext {
 public:
-    IOContext(Server *server);
-    ~IOContext();
+    IoContext(Buffer *buffer);
+    ~IoContext();
 
 
     WSAOVERLAPPED m_Overlapped;

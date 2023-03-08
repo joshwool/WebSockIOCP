@@ -3,6 +3,9 @@
 
 #include <core.hpp>
 
+#include <buffer.hpp>
+#include <connection.hpp>
+
 class Server {
 public:
     Server(const char* port,
@@ -18,7 +21,7 @@ public:
 
 private:
     Socket m_listenSocket;
-    IOCPort m_iocPort;
+    IoCPort m_iocPort;
     Threadpool m_threadpool;
 
     std::vector<Buffer*> m_bufs;
