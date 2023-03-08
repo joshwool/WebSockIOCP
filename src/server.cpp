@@ -35,9 +35,9 @@ void Server::Run() {
         Connection *new_con = m_listenSocket.Accept();
         m_connections.push_back(new_con);
 
-        IOContext *ioContext = new IOContext(this);
+        new_con->CreateIOContext(this);
 
-        m_iocPort.AssignSocket(new_con->GetHandle(), ULONG_PTR(ioContext));
+        m_iocPort.AssignSocket(new_con->GetHandle(), ULONG_PTR(ioContext.get()));
 
 
     }

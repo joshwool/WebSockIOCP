@@ -2,8 +2,6 @@
 #define WEBSOCKIOCP_IOCP_HPP
 
 #include <core.hpp>
-#include <socket.hpp>
-#include <server.hpp>
 
 class IOCPort {
 public:

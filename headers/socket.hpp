@@ -2,8 +2,8 @@
 #define WEBSOCKIOCP_SOCKET_HPP
 
 #include <core.hpp>
-#include <iocp.hpp>
-#include <connection.hpp>
+
+class Connection;
 
 class Socket {
 public:

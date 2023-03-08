@@ -1,6 +1,9 @@
-#include <iostream>
+#include <websockiocp.hpp>
 
 int main() {
-    std::cout << "Hello, World!" << std::endl;
-    return 0;
+    Server server = Server(
+            "80",
+            500,
+            20,
+            500);
 }

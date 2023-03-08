@@ -2,13 +2,6 @@
 #define WEBSOCKSERVER_SERVER_HPP
 
 #include <core.hpp>
-#include <socket.hpp>
-#include <iocp.hpp>
-#include <thread.hpp>
-#include <threadpool.hpp>
-#include <buffer.hpp>
-#include <connection.hpp>
-#include <iocontext.hpp>
 
 class Server {
 public:

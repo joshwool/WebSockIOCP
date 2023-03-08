@@ -2,8 +2,6 @@
 #define WEBSOCKIOCP_IOCONTEXT_HPP
 
 #include <core.hpp>
-#include <buffer.hpp>
-
 
 class Server;
 

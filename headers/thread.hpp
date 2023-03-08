@@ -2,7 +2,6 @@
 #define WEBSOCKIOCP_THREAD_HPP
 
 #include <core.hpp>
-#include <iocontext.hpp>
 
 class Threadpool;
 
