@@ -39,5 +39,4 @@ private:
     int m_maxThreadCount;
 };
 
-
 #endif //WEBSOCKSERVER_SERVER_HPP

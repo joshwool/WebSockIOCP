@@ -3,7 +3,9 @@
 
 #include <core.hpp>
 #include <buffer.hpp>
-#include <server.hpp>
+
+
+class Server;
 
 class IOContext {
 public:
