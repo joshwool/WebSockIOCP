@@ -3,6 +3,8 @@
 
 #include <core.hpp>
 
+#include <iocontext.hpp>
+
 class Threadpool;
 
 class Thread {
@@ -13,10 +15,13 @@ public:
     friend class Threadpool;
 
     static DWORD WINAPI IoWork(LPVOID lpParam);
+
+    bool Terminate();
 private:
-    Threadpool *parentPool;
-    HANDLE handle;
-    DWORD threadId;
+    Threadpool *m_parentPool;
+
+    HANDLE m_handle;
+    DWORD m_threadId;
 };
 
 #endif //WEBSOCKIOCP_THREAD_HPP

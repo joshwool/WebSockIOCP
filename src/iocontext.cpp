@@ -1,6 +1,6 @@
-#include <iocontext.hpp>
+#include "iocontext.hpp"
 
-IOContext::IOContext(Server *server) {
-    m_buffer = server->BufPop();
+IoContext::IoContext(Buffer *buffer) {
+    m_buffer = buffer;
     m_wsabuf = *m_buffer->GetWSABUF();
 }

@@ -1,6 +1,6 @@
-#include <iocp.hpp>
+#include "iocp.hpp"
 
-IOCPort::IOCPort(int maxConcThreads) {
+IoCPort::IoCPort(int maxConcThreads) {
     m_handle = CreateIoCompletionPort(
             INVALID_HANDLE_VALUE,
             nullptr,
@@ -12,16 +12,16 @@ IOCPort::IOCPort(int maxConcThreads) {
     }
 }
 
-IOCPort::~IOCPort() {
+IoCPort::~IoCPort() {
     ClosePort();
     PostCompletionPacket(0);
 }
 
-void IOCPort::ClosePort() {
+void IoCPort::ClosePort() {
     CloseHandle(m_handle);
 }
 
-bool IOCPort::AssignSocket(SOCKET socket, ULONG_PTR socketContext) {
+bool IoCPort::AssignSocket(SOCKET socket, ULONG_PTR socketContext) {
     m_handle = CreateIoCompletionPort(
             (HANDLE)socket,
             m_handle,
@@ -35,7 +35,7 @@ bool IOCPort::AssignSocket(SOCKET socket, ULONG_PTR socketContext) {
     return true;
 }
 
-void IOCPort::PostCompletionPacket(ULONG_PTR completionKey) {
+void IoCPort::PostCompletionPacket(ULONG_PTR completionKey) {
     if (PostQueuedCompletionStatus(
             m_handle,
             sizeof(completionKey),
@@ -45,6 +45,6 @@ void IOCPort::PostCompletionPacket(ULONG_PTR completionKey) {
     }
 }
 
-HANDLE IOCPort::GetHandle() {
+HANDLE IoCPort::GetHandle() {
     return m_handle;
 }

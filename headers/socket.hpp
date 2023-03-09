@@ -2,8 +2,7 @@
 #define WEBSOCKIOCP_SOCKET_HPP
 
 #include <core.hpp>
-
-class Connection;
+#include <connection.hpp>
 
 class Socket {
 public:
@@ -11,7 +10,7 @@ public:
     ~Socket();
     void CloseSocket();
 
-    bool Create(const char* port);
+    bool Create(const char* port, const char *address);
 
     bool Bind();
     bool Listen();

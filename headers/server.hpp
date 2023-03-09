@@ -8,10 +8,12 @@
 
 class Server {
 public:
-    Server(const char* port,
-           int maxSocketNum,
-           int maxThreadCount,
-           int maxBufNum);
+    Server(
+      const char *port,
+      const char *address,
+      int maxSocketNum,
+      int maxThreadCount,
+      int maxBufNum);
 
     bool Setup();
 
@@ -24,11 +26,13 @@ private:
     IoCPort m_iocPort;
     Threadpool m_threadpool;
 
-    std::vector<Buffer*> m_bufs;
+    CRITICAL_SECTION &m_criticalSection;
 
+    std::vector<Buffer*> m_bufs;
     std::vector<Connection*> m_connections;
 
-    const char* port;
+    const char *m_port;
+    const char *m_address;
 
     int m_maxBufNum;
     int m_maxSocketNum;

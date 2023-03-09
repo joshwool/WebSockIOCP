@@ -12,7 +12,7 @@ void Socket::CloseSocket() {
     }
 }
 
-bool Socket::Create(const char* port) {
+bool Socket::Create(const char* port, const char *address) {
     addrinfo hints, *res;
 
     ZeroMemory(&hints, sizeof(hints));

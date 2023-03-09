@@ -1,9 +1,23 @@
 #include <websockiocp.hpp>
 
 int main() {
-    Server server = Server(
-            "80",
-            500,
-            20,
-            500);
+
+    WSADATA wsaData;
+
+    if (WSAStartup(MAKEWORD(2,2), &wsaData) == 0) {
+        Server server(
+          "80",
+          "127.0.0.1",
+          500,
+          20,
+          500);
+
+        server.Setup();
+
+        server.Run();
+    }
+    else {
+        std::cout << "WSAStartup() failed: " << WSAGetLastError() << std::endl;
+    }
+    return 0;
 }
