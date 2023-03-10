@@ -1,6 +1,6 @@
 #include <thread.hpp>
 
-Thread::Thread(HANDLE iocPort, Threadpool *parentPool) : m_handle(INVALID_HANDLE_VALUE), m_parentPool(parentPool) {
+Thread::Thread(HANDLE iocPort) : m_handle(INVALID_HANDLE_VALUE), m_threadId(0) {
     m_handle = CreateThread(
             nullptr,
             0,
@@ -19,7 +19,7 @@ Thread::~Thread() {
 }
 
 DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
-    HANDLE iocpHandle = (HANDLE)IoCPort;
+    auto iocpHandle = (HANDLE)IoCPort;
     DWORD totalBytes;
     IoContext *ioContext;
     LPWSAOVERLAPPED overlapped;

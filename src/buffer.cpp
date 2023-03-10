@@ -1,9 +1,13 @@
 #include <buffer.hpp>
 
-Buffer::Buffer(size_t bufSize) : m_totalSize(bufSize) {
+Buffer::Buffer(size_t bufSize, Bufferpool *parentPool) : m_totalSize(bufSize), m_parentPool(parentPool) {
     m_buffer = (char*)malloc(bufSize);
 
     SetupWSABUF();
+}
+
+Buffer::~Buffer() {
+	delete[] m_buffer;
 }
 
 void Buffer::SetupWSABUF() {
@@ -20,10 +24,7 @@ void Buffer::ReAllocMem(size_t newSize) {
     else {
         m_totalSize = newSize;
     }
-}
-
-Buffer::~Buffer() {
-    delete[] m_buffer;
+	SetupWSABUF();
 }
 
 char *Buffer::GetBuffer() {
@@ -33,3 +34,4 @@ char *Buffer::GetBuffer() {
 WSABUF *Buffer::GetWSABUF() {
     return &m_wsabuf;
 }
+

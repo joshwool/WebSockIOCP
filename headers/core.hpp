@@ -13,6 +13,6 @@
 #include <iostream>
 #include <memory>
 
-#define MAX_BUF_MEM 1024
+#define INIT_BUF_MEM 1024
 
 #endif //WEBSOCKSERVER_CORE_HPP

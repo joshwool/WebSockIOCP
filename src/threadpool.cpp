@@ -2,12 +2,14 @@
 
 Threadpool::Threadpool(int threadCount, HANDLE iocPort) : m_threadCount(threadCount) {
     for (int i = 0; i < threadCount; i++) {
-        m_threadVec.push_back(std::make_unique<Thread>(iocPort, this));
+        m_threadVec.push_back(new Thread(iocPort));
     }
 }
 
 Threadpool::~Threadpool() {
-
+	for (Thread *thread : m_threadVec) {
+		delete thread;
+	}
 }
 
 HANDLE *Threadpool::GetHandleArray() {

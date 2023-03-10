@@ -3,9 +3,13 @@
 
 #include <core.hpp>
 
+class Bufferpool;
+
 class Buffer {
 public:
-    Buffer(size_t bufSize);
+	friend class IoContext;
+
+    Buffer(size_t bufSize, Bufferpool *parentPool);
     ~Buffer();
 
     void SetupWSABUF();
@@ -18,6 +22,8 @@ public:
 
     WSABUF *GetWSABUF();
 private:
+	Bufferpool *m_parentPool;
+
     char *m_buffer;
     size_t m_totalSize;
     size_t m_usedSize;

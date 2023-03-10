@@ -9,7 +9,7 @@ class Threadpool;
 
 class Thread {
 public:
-    Thread(HANDLE iocPort, Threadpool *parentPool);
+    Thread(HANDLE iocPort);
     ~Thread();
 
     friend class Threadpool;
@@ -18,8 +18,6 @@ public:
 
     bool Terminate();
 private:
-    Threadpool *m_parentPool;
-
     HANDLE m_handle;
     DWORD m_threadId;
 };

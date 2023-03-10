@@ -3,7 +3,7 @@ project(WebSockIOCP)
 
 set(CMAKE_CXX_STANDARD 17)
 
-file(GLOB_RECURSE SOURCE_FILES CONFIGURE_DEPENDS src/*.cpp)
+file(GLOB_RECURSE SOURCE_FILES src/*.cpp)
 
 add_executable(WebSockIOCP ${SOURCE_FILES} main.cpp)
 

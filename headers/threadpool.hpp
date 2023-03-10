@@ -12,7 +12,7 @@ public:
 
     HANDLE *GetHandleArray();
 private:
-    std::vector<std::unique_ptr<Thread>> m_threadVec;
+    std::vector<Thread*> m_threadVec;
     int m_threadCount;
 };
 
