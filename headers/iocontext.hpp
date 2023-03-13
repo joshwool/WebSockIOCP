@@ -14,8 +14,9 @@ public:
     WSAOVERLAPPED m_Overlapped;
     Buffer *m_buffer;
     WSABUF m_wsabuf;
-    int m_nSent;
-    int m_nTotal;
+    DWORD m_nSent;
+    DWORD m_nTotal;
+	DWORD m_flags;
     SOCKET m_connection;
 };
 

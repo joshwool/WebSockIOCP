@@ -31,8 +31,11 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
                 (PULONG_PTR)&ioContext,
                 &overlapped,
                 INFINITE)) {
-          std::cout << "Packet Received" << std::endl;
+			std::cout << ioContext->m_wsabuf.buf << std::endl;
         }
+		else {
+			std::cout << GetLastError() << std::endl;
+		}
     }
 }
 

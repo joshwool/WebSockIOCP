@@ -2,7 +2,7 @@
 
 Bufferpool::Bufferpool(int maxBufNum) {
 	for (int i = 0; i < maxBufNum; i++) {
-		m_buffers[i] = new Buffer(INIT_BUF_MEM, this);
+		m_buffers.push_back(new Buffer(INIT_BUF_MEM, this));
 
 		if (!m_buffers.at(i)) {
 			std::cout << "Buffer " << i << " not created" << std::endl;

@@ -28,7 +28,7 @@ bool IoCPort::AssignSocket(SOCKET socket, ULONG_PTR socketContext) {
             socketContext,
             0);
 
-    if (m_handle == NULL) {
+    if (m_handle == nullptr) {
         std::cout << "CreateIoCompletionPort() failed: " << GetLastError() << std::endl;
         return false;
     }
@@ -40,7 +40,7 @@ void IoCPort::PostCompletionPacket(ULONG_PTR completionKey) {
             m_handle,
             sizeof(completionKey),
             completionKey,
-            nullptr) != 0) {
+            nullptr) == 0) {
         std::cout << "PostQueuedCompletionStatus() failed: " << GetLastError() << std::endl;
     }
 }

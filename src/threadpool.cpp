@@ -13,7 +13,7 @@ Threadpool::~Threadpool() {
 }
 
 HANDLE *Threadpool::GetHandleArray() {
-    HANDLE *handleArr = (HANDLE *)malloc(sizeof(HANDLE) * m_threadCount);
+    auto *handleArr = (HANDLE *)malloc(sizeof(HANDLE) * m_threadCount);
 
     for (int i = 0; i < m_threadCount; i++) {
         handleArr[i] = m_threadVec[i]->m_handle;

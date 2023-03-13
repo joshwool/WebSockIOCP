@@ -20,7 +20,7 @@ public:
     SOCKET GetHandle();
 private:
     sockaddr m_address;
-    size_t m_addrlen;
+    int m_addrlen;
     SOCKET m_handle;
 };
 

@@ -2,7 +2,7 @@
 
 Server::Server(const char *port, const char *address, int maxSocketNum, int maxThreadCount, int maxBufNum)
     :
-      	m_port(port),
+		m_port(port),
       	m_address(address),
 		m_maxSocketNum(maxSocketNum),
 		m_maxThreadCount(maxThreadCount),
@@ -30,13 +30,11 @@ void Server::Run() {
             Connection *new_con = m_listenSocket.Accept();
             m_connections.push_back(new_con);
 
-            EnterCriticalSection(&m_criticalSection);
+			new_con->SetpIoContext(std::make_shared<IoContext>(m_bufferpool.BufferPop()));
 
-            new_con->SetpIoContext(std::make_shared<IoContext>(m_bufferpool.BufferPop()));
+			m_iocPort.AssignSocket(new_con->GetHandle(), ULONG_PTR(new_con->GetpIoContext()));
 
-            m_iocPort.AssignSocket(new_con->GetHandle(), ULONG_PTR(new_con->GetpIoContext()));
-
-            m_iocPort.PostCompletionPacket(0);
+			new_con->InitialRead();
         }
     }
 }

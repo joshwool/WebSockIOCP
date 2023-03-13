@@ -1,6 +1,6 @@
 #include <socket.hpp>
 
-Socket::Socket() : m_handle(INVALID_SOCKET) {}
+Socket::Socket() {}
 
 Socket::~Socket() {
     CloseSocket();
@@ -13,7 +13,7 @@ void Socket::CloseSocket() {
 }
 
 bool Socket::Create(const char* port, const char *address) {
-    addrinfo hints, *res;
+    addrinfo hints = {}, *res;
 
     ZeroMemory(&hints, sizeof(hints));
     hints.ai_family = AF_INET;
@@ -22,7 +22,7 @@ bool Socket::Create(const char* port, const char *address) {
     hints.ai_flags = AI_PASSIVE;
 
     int result = getaddrinfo(
-            nullptr,
+            address,
             port,
             &hints,
             &res);
@@ -47,7 +47,7 @@ bool Socket::Create(const char* port, const char *address) {
         return false;
     }
     m_address = *res->ai_addr;
-    m_addrlen = res->ai_addrlen;
+    m_addrlen = (int)res->ai_addrlen;
     freeaddrinfo(res);
     return true;
 }
@@ -78,13 +78,25 @@ bool Socket::Listen() {
 }
 
 Connection *Socket::Accept() {
-    Connection *connection = new Connection;
-    connection->m_handle = accept(
-            m_handle,
-            &connection->m_addr,
-            &connection->m_addrlen);
+    auto *connection = new Connection;
 
-    return connection;
+	while (true) {
+		connection->m_handle = WSAAccept(
+		  m_handle,
+		  &connection->m_addr,
+		  nullptr,
+		  nullptr,
+		  0);
+
+		if (connection->m_handle != INVALID_SOCKET) {
+			std::cout << "Connection found" << std::endl;
+
+			return connection;
+		}
+		else {
+			std::cout << WSAGetLastError() << std::endl;
+		}
+	}
 }
 
 SOCKET Socket::GetHandle() {

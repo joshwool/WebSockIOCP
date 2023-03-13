@@ -12,6 +12,8 @@ public:
     Connection();
     ~Connection();
 
+	void InitialRead();
+
     SOCKET GetHandle();
 
     void SetpIoContext(std::shared_ptr<IoContext> pIoContext);

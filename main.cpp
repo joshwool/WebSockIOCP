@@ -10,7 +10,9 @@ int main() {
           "127.0.0.1",
           500,
           20,
-          500);
+          20);
+
+		std::cout << "Server Initialised" << std::endl;
 
         server.Setup();
 

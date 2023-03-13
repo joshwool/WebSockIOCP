@@ -8,6 +8,24 @@ Connection::~Connection() {
     }
 }
 
+void Connection::InitialRead() {
+	int result = WSARecv(
+	  m_handle,
+	  &(m_pIoContext->m_wsabuf),
+	  1,
+	  &(m_pIoContext->m_nTotal),
+	  &(m_pIoContext->m_flags),
+	  &(m_pIoContext->m_Overlapped),
+	  nullptr);
+
+	if (result != 0) {
+		std::cout << "IntialRead() failed: " << WSAGetLastError() << std::endl;
+	}
+	else {
+		std::cout << m_pIoContext->m_nTotal << " bytes received" << std::endl;
+	}
+}
+
 SOCKET Connection::GetHandle() {
     return m_handle;
 }
