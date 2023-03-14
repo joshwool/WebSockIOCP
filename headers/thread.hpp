@@ -4,6 +4,7 @@
 #include <core.hpp>
 
 #include <iocontext.hpp>
+#include <connection.hpp>
 
 
 class Threadpool;
@@ -16,6 +17,8 @@ public:
     friend class Threadpool;
 
     static DWORD WINAPI IoWork(LPVOID lpParam);
+
+	static std::string KeyCalc(std::string key);
 
     bool Terminate();
 private:

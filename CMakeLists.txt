@@ -10,3 +10,5 @@ add_executable(WebSockIOCP ${SOURCE_FILES} main.cpp)
 target_link_libraries(WebSockIOCP ws2_32.lib)
 target_include_directories(WebSockIOCP PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/headers)
 
+find_package(OpenSSL REQUIRED)
+target_link_libraries(WebSockIOCP OpenSSL::Crypto)

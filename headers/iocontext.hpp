@@ -6,9 +6,17 @@
 #include <buffer.hpp>
 #include <bufferpool.hpp>
 
+enum IoEvent {
+	read,
+	write,
+	initialRead
+};
+
+class Connection;
+
 class IoContext {
 public:
-    IoContext(Buffer *buffer);
+    IoContext(Buffer *buffer, std::shared_ptr<Connection> connection);
     ~IoContext();
 
     WSAOVERLAPPED m_Overlapped;
@@ -17,7 +25,8 @@ public:
     DWORD m_nSent;
     DWORD m_nTotal;
 	DWORD m_flags;
-    SOCKET m_connection;
+    std::shared_ptr<Connection> m_pConnection;
+	IoEvent m_ioEvent;
 };
 
 #endif //WEBSOCKIOCP_IOCONTEXT_HPP

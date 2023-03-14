@@ -14,6 +14,10 @@ public:
 
 	void InitialRead();
 
+	void Read();
+
+	void Write();
+
     SOCKET GetHandle();
 
     void SetpIoContext(std::shared_ptr<IoContext> pIoContext);

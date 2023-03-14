@@ -90,7 +90,6 @@ Connection *Socket::Accept() {
 
 		if (connection->m_handle != INVALID_SOCKET) {
 			std::cout << "Connection found" << std::endl;
-
 			return connection;
 		}
 		else {
