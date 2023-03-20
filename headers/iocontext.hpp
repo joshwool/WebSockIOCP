@@ -12,12 +12,16 @@ enum IoEvent {
 	initialRead
 };
 
-class Connection;
-
 class IoContext {
 public:
-    IoContext(Buffer *buffer, std::shared_ptr<Connection> connection);
+    IoContext(Buffer *buffer, SOCKET connection);
     ~IoContext();
+
+	void AddRef();
+
+	void Release();
+
+	long m_refCount;
 
     WSAOVERLAPPED m_Overlapped;
     Buffer *m_buffer;
@@ -25,7 +29,7 @@ public:
     DWORD m_nSent;
     DWORD m_nTotal;
 	DWORD m_flags;
-    std::shared_ptr<Connection> m_pConnection;
+    SOCKET m_connection;
 	IoEvent m_ioEvent;
 };
 

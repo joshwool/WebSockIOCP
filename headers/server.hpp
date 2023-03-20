@@ -8,7 +8,6 @@
 #include <iocp.hpp>
 #include <iocontext.hpp>
 #include <threadpool.hpp>
-#include <connection.hpp>
 
 class Server {
 public:
@@ -22,6 +21,8 @@ public:
     bool Setup();
 
     void Run();
+
+	void Test();
 private:
     Socket m_listenSocket;
     IoCPort m_iocPort;
@@ -29,8 +30,6 @@ private:
 	Bufferpool m_bufferpool;
 
     CRITICAL_SECTION m_criticalSection;
-
-    std::vector<Connection*> m_connections;
 
     const char *m_port;
     const char *m_address;

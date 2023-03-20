@@ -2,7 +2,6 @@
 #define WEBSOCKIOCP_SOCKET_HPP
 
 #include <core.hpp>
-#include <connection.hpp>
 
 class Socket {
 public:
@@ -15,7 +14,7 @@ public:
     bool Bind();
     bool Listen();
 
-    Connection *Accept();
+    SOCKET Accept();
 
     SOCKET GetHandle();
 private:

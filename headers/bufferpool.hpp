@@ -16,6 +16,8 @@ public:
 
 	void BufferPlace(Buffer *buffer);
 	Buffer *BufferPop();
+
+	int BufferCount();
 private:
 	std::vector<Buffer*> m_buffers;
 };

@@ -27,14 +27,28 @@ bool Server::Setup() {
 void Server::Run() {
     if (m_listenSocket.Listen()) {
         while (true) {
-            Connection *new_con = m_listenSocket.Accept();
-            m_connections.push_back(new_con);
+            SOCKET new_con = m_listenSocket.Accept();
 
-			new_con->SetpIoContext(std::make_shared<IoContext>(m_bufferpool.BufferPop()));
+			auto *pIoContext = new IoContext(m_bufferpool.BufferPop(), new_con);
 
-			m_iocPort.AssignSocket(new_con->GetHandle(), ULONG_PTR(new_con->GetpIoContext()));
+			m_iocPort.AssignSocket(new_con, ULONG_PTR(pIoContext));
 
-			new_con->InitialRead();
+			pIoContext->m_ioEvent = initialRead;
+
+			int result = WSARecv(
+			  new_con,
+			  &(pIoContext->m_wsabuf),
+			  1,
+			  &(pIoContext->m_nTotal),
+			  &(pIoContext->m_flags),
+			  &(pIoContext->m_Overlapped),
+			  nullptr);
+
+			if (result != 0 && WSAGetLastError() != 997) {
+				std::cout << "WSARecv() failed: " << WSAGetLastError() << std::endl;
+			} else {
+				std::cout << pIoContext->m_nTotal << " bytes received" << std::endl;
+			}
         }
     }
 }

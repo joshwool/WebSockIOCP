@@ -25,3 +25,7 @@ Buffer *Bufferpool::BufferPop() {
 	m_buffers.pop_back();
 	return buffer;
 }
+
+int Bufferpool::BufferCount() {
+	return m_buffers.size();
+}

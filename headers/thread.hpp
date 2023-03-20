@@ -4,8 +4,6 @@
 #include <core.hpp>
 
 #include <iocontext.hpp>
-#include <connection.hpp>
-
 
 class Threadpool;
 

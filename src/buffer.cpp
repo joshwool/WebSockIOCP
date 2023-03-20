@@ -27,6 +27,11 @@ void Buffer::ReAllocMem(size_t newSize) {
 	SetupWSABUF();
 }
 
+void Buffer::ClearBuf() {
+	memset(m_buffer, 0, m_totalSize);
+	m_wsabuf.len = 0;
+}
+
 char *Buffer::GetBuffer() {
     return m_buffer;
 }

@@ -16,7 +16,7 @@ public:
 
     void ReAllocMem(size_t newSize);
 
-    void ClearMem();
+    void ClearBuf();
 
     char *GetBuffer();
 

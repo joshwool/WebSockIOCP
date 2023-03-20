@@ -10,7 +10,6 @@
 #include <bufferpool.hpp>
 #include <iocp.hpp>
 #include <iocontext.hpp>
-#include <connection.hpp>
 #include <thread.hpp>
 #include <threadpool.hpp>
 #include <server.hpp>

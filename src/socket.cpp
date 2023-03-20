@@ -77,19 +77,20 @@ bool Socket::Listen() {
     }
 }
 
-Connection *Socket::Accept() {
-    auto *connection = new Connection;
+SOCKET Socket::Accept() {
+	SOCKET connection = INVALID_SOCKET;
 
 	while (true) {
-		connection->m_handle = WSAAccept(
+		connection = WSAAccept(
 		  m_handle,
-		  &connection->m_addr,
+		  nullptr,
 		  nullptr,
 		  nullptr,
 		  0);
 
-		if (connection->m_handle != INVALID_SOCKET) {
-			std::cout << "Connection found" << std::endl;
+		if (connection != INVALID_SOCKET) {
+			std::cout << "Connection found: " << connection << std::endl;
+
 			return connection;
 		}
 		else {

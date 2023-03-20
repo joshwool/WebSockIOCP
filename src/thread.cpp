@@ -1,7 +1,6 @@
 #include <thread.hpp>
 #include <openssl/sha.h>
 #include <bitset>
-#include <cmath>
 
 Thread::Thread(HANDLE iocPort) : m_handle(INVALID_HANDLE_VALUE), m_threadId(0) {
     m_handle = CreateThread(
@@ -23,54 +22,145 @@ Thread::~Thread() {
 
 DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
     auto iocpHandle = (HANDLE)IoCPort;
-    DWORD totalBytes;
-    IoContext *ioContext;
-    LPWSAOVERLAPPED overlapped;
 
     while (true) {
+		DWORD totalBytes;
+		DWORD sentBytes;
+		IoContext *ioContext;
+		LPWSAOVERLAPPED overlapped;
+
         if (GetQueuedCompletionStatus(
                 iocpHandle,
                 &totalBytes,
                 (PULONG_PTR)&ioContext,
                 &overlapped,
                 INFINITE)) {
-			std::string message(ioContext->m_wsabuf.buf);
 
-			std::cout << ioContext->m_pConnection->GetHandle() << std::endl;
+			if (totalBytes == 0) {
+				std::cout << "Connection Closing: " << ioContext->m_connection << std::endl;
+				ioContext->Release();
+				break;
+			}
+
+			ioContext->AddRef();
 
 			switch(ioContext->m_ioEvent) {
-				case initialRead:
+				case initialRead: {
+					std::string message(ioContext->m_wsabuf.buf);
+
 					std::string acceptKey;
 
 					std::vector<std::string> lines;
 
 					int start = 0;
-					int end = (int)message.find("\r\n");
+					int end	  = (int)message.find("\r\n");
 
 					while (end != -1) {
 						lines.push_back(message.substr(start, end - start));
 						start = end + 2;
-						end = (int)message.find("\r\n", start);
+						end	  = (int)message.find("\r\n", start);
 					}
 
-					for (std::string& line : lines) {
+					bool keyFound = false;
+
+					for (std::string &line : lines) {
 						if (line.find("Sec-WebSocket-Key: ") == 0) {
 							std::string key = line.substr(strlen("Sec-WebSocket-Key: "));
-
+							keyFound = true;
 							acceptKey = KeyCalc(key);
 						}
 					}
+
+					if (!keyFound) {
+						std::cout << "WebSocket-Key could not be found" << std::endl;
+						closesocket(ioContext->m_connection);
+						ioContext->Release();
+						break;
+					}
+
 					std::string response(
 					  "HTTP/1.1 101 Switching Protocols\r\n"
 					  "Upgrade: websocket\r\n"
 					  "Connection: Upgrade\r\n"
 					  "Sec-WebSocket-Accept: ");
 
-					response.append(acceptKey);
+					response.append(acceptKey + "\r\n\r\n");
 
-					std::cout << acceptKey.c_str() << std::endl;
+					ioContext->m_ioEvent = write;
+					ioContext->m_wsabuf.buf = const_cast<char *>(response.c_str());
+					ioContext->m_wsabuf.len = strlen(response.c_str());
 
-					std::cout << response << std::endl;
+					int result = WSASend(
+					  ioContext->m_connection,
+					  &(ioContext->m_wsabuf),
+					  1,
+					  &(ioContext->m_nTotal),
+					  ioContext->m_flags,
+					  &(ioContext->m_Overlapped),
+					  nullptr);
+
+					if (result != 0 && WSAGetLastError() != 997) {
+						std::cout << "WSASend() failed: " << WSAGetLastError() << std::endl;
+					} else {
+						std::cout << ioContext->m_nTotal << " bytes sent" << std::endl;
+					}
+
+					ioContext->Release();
+					break;
+				}
+				case read: {
+					std::string message(ioContext->m_wsabuf.buf);
+
+					std::cout << message << std::endl;
+
+					break;
+				}
+				case write: {
+					ioContext->m_nSent += totalBytes;
+
+					if (ioContext->m_nSent < ioContext->m_nTotal) {
+
+						ioContext->m_wsabuf.buf += ioContext->m_nSent;
+						ioContext->m_wsabuf.len -= ioContext->m_nSent;
+
+						int result = WSASend(
+						  ioContext->m_connection,
+						  &(ioContext->m_wsabuf),
+						  1,
+						  &sentBytes,
+						  ioContext->m_flags,
+						  &(ioContext->m_Overlapped),
+						  nullptr);
+
+						if (result != 0 && WSAGetLastError() != 997) {
+							std::cout << "WSASend() failed: " << WSAGetLastError() << std::endl;
+						} else {
+							std::cout << sentBytes << " bytes sent" << std::endl;
+						}
+					} else {
+						ioContext->m_ioEvent = read;
+						ioContext->m_buffer->ClearBuf();
+						ioContext->m_wsabuf = *ioContext->m_buffer->GetWSABUF();
+
+						int result = WSARecv(
+						  ioContext->m_connection,
+						  &(ioContext->m_wsabuf),
+						  1,
+						  &(ioContext->m_nTotal),
+						  &(ioContext->m_flags),
+						  &(ioContext->m_Overlapped),
+						  nullptr);
+
+						if (result != 0 && WSAGetLastError() != 997) {
+							std::cout << "WSARecv() failed: " << WSAGetLastError() << std::endl;
+						} else {
+							std::cout << ioContext->m_nTotal << " bytes received" << std::endl;
+						}
+					}
+
+					ioContext->Release();
+					break;
+				}
 			}
         } else {
 			std::cout << GetLastError() << std::endl;
