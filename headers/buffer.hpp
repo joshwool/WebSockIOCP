@@ -7,27 +7,26 @@ class Bufferpool;
 
 class Buffer {
 public:
-	friend class IoContext;
-
-    Buffer(size_t bufSize, Bufferpool *parentPool);
-    ~Buffer();
-
     void SetupWSABUF();
 
-    void ReAllocMem(size_t newSize);
+	Buffer(size_t bufSize, Bufferpool *parentPool);
+	~Buffer();
+
+	void AddData(const char* pData, size_t dataLength);
 
     void ClearBuf();
 
     char *GetBuffer();
 
     WSABUF *GetWSABUF();
+
+	Bufferpool *GetParentPool();
 private:
 	Bufferpool *m_parentPool;
 
-    char *m_buffer;
+	size_t m_usedSize;
     size_t m_totalSize;
-    size_t m_usedSize;
-
+	char *m_buffer;
     WSABUF m_wsabuf;
 };
 

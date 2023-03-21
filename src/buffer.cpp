@@ -1,13 +1,16 @@
 #include <buffer.hpp>
 
-Buffer::Buffer(size_t bufSize, Bufferpool *parentPool) : m_totalSize(bufSize), m_parentPool(parentPool) {
-    m_buffer = (char*)malloc(bufSize);
+Buffer::Buffer(size_t bufSize, Bufferpool *parentPool)
+		:
+		m_totalSize(bufSize),
+		m_parentPool(parentPool) {
+	m_buffer = (char*)malloc(m_totalSize);
 
-    SetupWSABUF();
+	SetupWSABUF();
 }
 
 Buffer::~Buffer() {
-	delete[] m_buffer;
+	delete m_buffer;
 }
 
 void Buffer::SetupWSABUF() {
@@ -15,21 +18,14 @@ void Buffer::SetupWSABUF() {
     m_wsabuf.len = m_totalSize;
 }
 
-void Buffer::ReAllocMem(size_t newSize) {
-    m_buffer = (char*)realloc(m_buffer, newSize);
-
-    if (!m_buffer) {
-        std::cout << "realloc() failed: " << std::endl;
-    }
-    else {
-        m_totalSize = newSize;
-    }
-	SetupWSABUF();
+void Buffer::AddData(const char* pData, size_t dataLength) {
+	memcpy(m_wsabuf.buf, pData, dataLength);
+	m_wsabuf.len = dataLength;
 }
 
 void Buffer::ClearBuf() {
 	memset(m_buffer, 0, m_totalSize);
-	m_wsabuf.len = 0;
+	m_wsabuf.len = m_totalSize;
 }
 
 char *Buffer::GetBuffer() {
@@ -40,3 +36,6 @@ WSABUF *Buffer::GetWSABUF() {
     return &m_wsabuf;
 }
 
+Bufferpool *Buffer::GetParentPool() {
+	return m_parentPool;
+}

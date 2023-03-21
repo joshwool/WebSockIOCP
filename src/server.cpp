@@ -37,7 +37,7 @@ void Server::Run() {
 
 			int result = WSARecv(
 			  new_con,
-			  &(pIoContext->m_wsabuf),
+			  pIoContext->m_buffer->GetWSABUF(),
 			  1,
 			  &(pIoContext->m_nTotal),
 			  &(pIoContext->m_flags),
@@ -46,8 +46,6 @@ void Server::Run() {
 
 			if (result != 0 && WSAGetLastError() != 997) {
 				std::cout << "WSARecv() failed: " << WSAGetLastError() << std::endl;
-			} else {
-				std::cout << pIoContext->m_nTotal << " bytes received" << std::endl;
 			}
         }
     }

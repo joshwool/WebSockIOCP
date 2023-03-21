@@ -1,6 +1,4 @@
 #include <thread.hpp>
-#include <openssl/sha.h>
-#include <bitset>
 
 Thread::Thread(HANDLE iocPort) : m_handle(INVALID_HANDLE_VALUE), m_threadId(0) {
     m_handle = CreateThread(
@@ -26,30 +24,33 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
     while (true) {
 		DWORD totalBytes;
 		DWORD sentBytes;
-		IoContext *ioContext;
+		IoContext *pIoContext;
 		LPWSAOVERLAPPED overlapped;
 
         if (GetQueuedCompletionStatus(
                 iocpHandle,
                 &totalBytes,
-                (PULONG_PTR)&ioContext,
+                (PULONG_PTR)&pIoContext,
                 &overlapped,
                 INFINITE)) {
 
 			if (totalBytes == 0) {
-				std::cout << "Connection Closing: " << ioContext->m_connection << std::endl;
-				ioContext->Release();
+				std::cout << "Connection Closing: " << pIoContext->m_connection << std::endl;
+				pIoContext->Release();
 				break;
 			}
 
-			ioContext->AddRef();
+			pIoContext->AddRef();
+			WSABUF *wsabuf = pIoContext->m_buffer->GetWSABUF();
 
-			switch(ioContext->m_ioEvent) {
+			switch(pIoContext->m_ioEvent) {
 				case initialRead: {
-					std::string message(ioContext->m_wsabuf.buf);
+					pIoContext->m_nTotal = totalBytes;
 
+					std::cout << pIoContext->m_nTotal << " bytes received" << std::endl;
+
+					std::string message(wsabuf->buf);
 					std::string acceptKey;
-
 					std::vector<std::string> lines;
 
 					int start = 0;
@@ -73,8 +74,8 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
 
 					if (!keyFound) {
 						std::cout << "WebSocket-Key could not be found" << std::endl;
-						closesocket(ioContext->m_connection);
-						ioContext->Release();
+						closesocket(pIoContext->m_connection);
+						pIoContext->Release();
 						break;
 					}
 
@@ -86,79 +87,130 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
 
 					response.append(acceptKey + "\r\n\r\n");
 
-					ioContext->m_ioEvent = write;
-					ioContext->m_wsabuf.buf = const_cast<char *>(response.c_str());
-					ioContext->m_wsabuf.len = strlen(response.c_str());
+					pIoContext->m_ioEvent = write;
+					pIoContext->m_buffer->ClearBuf();
+					pIoContext->m_buffer->AddData(response.c_str(),strlen(response.c_str()));
+
 
 					int result = WSASend(
-					  ioContext->m_connection,
-					  &(ioContext->m_wsabuf),
+					  pIoContext->m_connection,
+					  wsabuf,
 					  1,
-					  &(ioContext->m_nTotal),
-					  ioContext->m_flags,
-					  &(ioContext->m_Overlapped),
+					  &(pIoContext->m_nTotal),
+					  pIoContext->m_flags,
+					  &(pIoContext->m_Overlapped),
 					  nullptr);
 
 					if (result != 0 && WSAGetLastError() != 997) {
 						std::cout << "WSASend() failed: " << WSAGetLastError() << std::endl;
-					} else {
-						std::cout << ioContext->m_nTotal << " bytes sent" << std::endl;
 					}
 
-					ioContext->Release();
+					pIoContext->Release();
 					break;
 				}
 				case read: {
-					std::string message(ioContext->m_wsabuf.buf);
+					pIoContext->m_nTotal = totalBytes;
 
-					std::cout << message << std::endl;
+					std::cout << pIoContext->m_nTotal << " bytes received" << std::endl;
 
+					std::string message(wsabuf->buf);
+
+					for (int i = 0; i < totalBytes; i++) { std::cout << std::bitset<8>(wsabuf->buf[i]).to_string(); }
+					std::cout << std::endl;
+
+					uint64_t payloadLen = readBits(wsabuf->buf[1], 1, 7);
+
+					if (payloadLen == 126) {
+						uint16_t payloadLen;
+
+						memcpy(&payloadLen, &wsabuf->buf[2], 2);
+						payloadLen = htons(payloadLen);
+					}
+					else if (payloadLen == 127) {
+						uint64_t payloadLen;
+
+						memcpy(&payloadLen, &wsabuf->buf[2], 8);
+						payloadLen = _byteswap_uint64(payloadLen);
+					}
+
+
+
+					char payload[payloadLen];
+
+
+
+
+					switch (readBits(wsabuf->buf[0], 4, 4)) {
+						case 0:
+
+							break;
+						case 1:
+							if (readBits(wsabuf->buf[0], 0, 1) == 0) {
+								pIoContext->m_opcode = 1;
+							}
+							break;
+						case 2:
+							if (readBits(wsabuf->buf[0], 0, 1) == 0) {
+								pIoContext->m_opcode = 1;
+							}
+
+
+							break;
+
+						case 8:
+
+							break;
+
+						case 9:
+
+							break;
+
+						default:
+							break;
+					}
+
+					pIoContext->Release();
 					break;
 				}
 				case write: {
-					ioContext->m_nSent += totalBytes;
+					std::cout << totalBytes << " bytes sent" << std::endl;
 
-					if (ioContext->m_nSent < ioContext->m_nTotal) {
+					pIoContext->m_nSent += totalBytes;
 
-						ioContext->m_wsabuf.buf += ioContext->m_nSent;
-						ioContext->m_wsabuf.len -= ioContext->m_nSent;
+					if (pIoContext->m_nSent < pIoContext->m_nTotal) {
+						wsabuf->buf += pIoContext->m_nSent;
+						wsabuf->len -= pIoContext->m_nSent;
 
 						int result = WSASend(
-						  ioContext->m_connection,
-						  &(ioContext->m_wsabuf),
+						  pIoContext->m_connection,
+						  wsabuf,
 						  1,
-						  &sentBytes,
-						  ioContext->m_flags,
-						  &(ioContext->m_Overlapped),
+						  nullptr,
+						  pIoContext->m_flags,
+						  &(pIoContext->m_Overlapped),
 						  nullptr);
 
 						if (result != 0 && WSAGetLastError() != 997) {
 							std::cout << "WSASend() failed: " << WSAGetLastError() << std::endl;
-						} else {
-							std::cout << sentBytes << " bytes sent" << std::endl;
 						}
 					} else {
-						ioContext->m_ioEvent = read;
-						ioContext->m_buffer->ClearBuf();
-						ioContext->m_wsabuf = *ioContext->m_buffer->GetWSABUF();
+						pIoContext->m_ioEvent = read;
+						pIoContext->m_buffer->ClearBuf();
 
-						int result = WSARecv(
-						  ioContext->m_connection,
-						  &(ioContext->m_wsabuf),
+						int result = WSARecv(pIoContext->m_connection,
+						  wsabuf,
 						  1,
-						  &(ioContext->m_nTotal),
-						  &(ioContext->m_flags),
-						  &(ioContext->m_Overlapped),
+						  &(pIoContext->m_nTotal),
+						  &(pIoContext->m_flags),
+						  &(pIoContext->m_Overlapped),
 						  nullptr);
 
 						if (result != 0 && WSAGetLastError() != 997) {
 							std::cout << "WSARecv() failed: " << WSAGetLastError() << std::endl;
-						} else {
-							std::cout << ioContext->m_nTotal << " bytes received" << std::endl;
 						}
 					}
 
-					ioContext->Release();
+					pIoContext->Release();
 					break;
 				}
 			}
@@ -177,33 +229,45 @@ std::string Thread::KeyCalc(std::string key) {
 
 	SHA1(data, key.size(), keyHash);
 
-	std::string binKey;
+	std::string binHash;
 
-	for (unsigned char i : keyHash) {
-		binKey.append(std::bitset<8>(i).to_string());
+	for (unsigned char i : keyHash) { binHash.append(std::bitset<8>(i).to_string());
 	}
 
-	binKey.append("00");
+	binHash.append("00");
 
 	char b64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-	char finKey[28];
+	char b64hash[28];
 
 	for (int i = 0; i < 28; i++) {
-		if (i*6 < binKey.size()) {
+		if (i*6 < binHash.size()) {
 			int start = i*6;
-			u_long bit6key = std::bitset<6>(binKey.substr(start, 6)).to_ulong();
+			u_long bit6key = std::bitset<6>(binHash.substr(start, 6)).to_ulong();
 
-			finKey[i] = b64[bit6key];
+			b64hash[i] = b64[bit6key];
 		}
 		else {
-			finKey[i] = '=';
+			b64hash[i] = '=';
 		}
 	}
 
-	finKey[28] = '\0';
+	b64hash[28] = '\0';
 
-	return finKey;
+	return b64hash;
+}
+
+uint8_t Thread::readBits(const unsigned char c, uint8_t msb, uint8_t n) {
+	uint8_t total = 0;
+
+	msb = 7 - msb;
+
+	for (int i = 0; i < n; i++) {
+		bool isOne = c & (1 << (msb -i));
+
+		total += isOne << (n - i - 1);
+	}
+	return total;
 }
 
 bool Thread::Terminate() {

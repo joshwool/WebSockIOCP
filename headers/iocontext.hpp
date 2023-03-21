@@ -25,12 +25,12 @@ public:
 
     WSAOVERLAPPED m_Overlapped;
     Buffer *m_buffer;
-    WSABUF m_wsabuf;
     DWORD m_nSent;
     DWORD m_nTotal;
 	DWORD m_flags;
     SOCKET m_connection;
 	IoEvent m_ioEvent;
+	uint8_t m_opcode;
 };
 
 #endif //WEBSOCKIOCP_IOCONTEXT_HPP
