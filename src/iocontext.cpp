@@ -14,20 +14,20 @@ IoContext::IoContext(Buffer *buffer, SOCKET connection)
 
 IoContext::~IoContext() {
 	std::cout << "Buf Returned" << std::endl;
-	m_buffer->ClearBuf();
-	std::cout << m_buffer->GetBuffer() << std::endl;
-	m_buffer->GetParentPool()->BufferPlace(m_buffer);
+	closesocket(m_connection); // Closes socket as connection has closed
+	m_buffer->ClearBuf(); // Clears buffer before returning it to the pool.
+	m_buffer->GetParentPool()->BufferPlace(m_buffer); // Recycling buffers instead of destroying them reduces overhead.
 }
 
 void IoContext::AddRef() {
-	InterlockedIncrement(&m_refCount);
+	InterlockedIncrement(&m_refCount); // Thread safe ref count increment
 }
 
 void IoContext::Release() {
-	InterlockedDecrement(&m_refCount);
+	InterlockedDecrement(&m_refCount); // Thread safe ref count decrement
 
-	if (m_refCount == 0) {
+	if (m_refCount == 0) { // If ref count hits 0 connection is closed and all work has been done.
 		std::cout << "Connection Closed: " << m_connection << std::endl;
-		delete this;
+		delete this; // Calls destructor
 	}
 }

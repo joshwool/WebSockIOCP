@@ -13,7 +13,7 @@ class Threadpool;
 
 class Thread {
 public:
-    Thread(HANDLE iocPort);
+    explicit Thread(HANDLE iocPort);
     ~Thread();
 
     friend class Threadpool;
@@ -24,10 +24,19 @@ public:
 
 	static uint8_t readBits(unsigned char c, uint8_t msb, uint8_t n);
 
+
     bool Terminate();
 private:
     HANDLE m_handle;
     DWORD m_threadId;
 };
+
+typedef struct FrameFormat {
+	unsigned char opcode : 4;
+	unsigned char : 3; // Not using any websocket extensions, so all RSV bits will always be 0.
+	unsigned char fin : 1;
+	unsigned char payloadLen : 7;
+	unsigned char mask : 1;
+} FrameFormat, pFrameFormat;
 
 #endif //WEBSOCKIOCP_THREAD_HPP

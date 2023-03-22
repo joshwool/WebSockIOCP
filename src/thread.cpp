@@ -47,7 +47,7 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
 				case initialRead: {
 					pIoContext->m_nTotal = totalBytes;
 
-					std::cout << pIoContext->m_nTotal << " bytes received" << std::endl;
+					std::cout << pIoContext->m_nTotal << " bytes received: " << pIoContext->m_connection << std::endl;
 
 					std::string message(wsabuf->buf);
 					std::string acceptKey;
@@ -74,7 +74,6 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
 
 					if (!keyFound) {
 						std::cout << "WebSocket-Key could not be found" << std::endl;
-						closesocket(pIoContext->m_connection);
 						pIoContext->Release();
 						break;
 					}
@@ -110,60 +109,100 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
 				}
 				case read: {
 					pIoContext->m_nTotal = totalBytes;
+					std::cout << pIoContext->m_nTotal << " bytes received: " << pIoContext->m_connection << std::endl;
 
-					std::cout << pIoContext->m_nTotal << " bytes received" << std::endl;
+					FrameFormat sendFormat = {0};
 
-					std::string message(wsabuf->buf);
+					std::cout << (int)sendFormat.fin << std::endl;
 
-					for (int i = 0; i < totalBytes; i++) { std::cout << std::bitset<8>(wsabuf->buf[i]).to_string(); }
+					std::string test(wsabuf->buf);
+
+					for (char c : test) {
+						std::cout << std::bitset<8>(c);
+					}
+
 					std::cout << std::endl;
 
-					uint64_t payloadLen = readBits(wsabuf->buf[1], 1, 7);
+					uint64_t payloadLen = readBits(wsabuf->buf[1], 1, 7); // Gets the value for the initial payload length
+					sendFormat.payloadLen = payloadLen; // Set the 7 bit payload length for the send frame.
 
-					if (payloadLen == 126) {
-						uint16_t payloadLen;
+					uint8_t paylenSize = 0; // Initialised with 0, as if value of payloadLen is not 126/127 then no extra bytes need to be skipped in future processing
 
-						memcpy(&payloadLen, &wsabuf->buf[2], 2);
-						payloadLen = htons(payloadLen);
+					if (payloadLen == 126) { // This check is explained in docs
+						payloadLen = 0;
+						paylenSize = 2;
+
+						for (int i = 0; i < 2; i++) {
+							payloadLen += (unsigned char)wsabuf->buf[2 + i];
+							payloadLen = (payloadLen << (8 * (1 - i)));
+						}
 					}
-					else if (payloadLen == 127) {
-						uint64_t payloadLen;
+					else if (payloadLen == 127) { // This check is explained in docs
+						payloadLen = 0;
+						paylenSize = 8;
 
-						memcpy(&payloadLen, &wsabuf->buf[2], 8);
-						payloadLen = _byteswap_uint64(payloadLen);
+						for (int i = 0; i < 8; i++) {
+							payloadLen += (unsigned char)wsabuf->buf[2 + i];
+							payloadLen = (payloadLen << (8 * (7 - i)));
+						}
 					}
 
-
-
+					char mask[4];
 					char payload[payloadLen];
+					payload[payloadLen] = 0;
 
+					if (readBits(wsabuf->buf[1], 0, 1)) {
+						sendFormat.mask = 1;
+						mask[4] = 0;
+						memcpy(&mask, &wsabuf->buf[2 + paylenSize], 4);
 
+						for (int i = 0; i < payloadLen; i++) {
+							payload[i] = wsabuf->buf[6 + paylenSize + i] ^ mask[i % 4];
+						}
+					}
+					else {
+						memcpy(&payload, &wsabuf->buf[2 + paylenSize], payloadLen);
+					}
 
+					std::cout << payload << std::endl;
 
-					switch (readBits(wsabuf->buf[0], 4, 4)) {
-						case 0:
+					sendFormat.fin = 1;
+					sendFormat.opcode = readBits(wsabuf->buf[0], 4, 4);
+					pIoContext->m_buffer->ClearBuf();
 
-							break;
-						case 1:
-							if (readBits(wsabuf->buf[0], 0, 1) == 0) {
-								pIoContext->m_opcode = 1;
-							}
-							break;
-						case 2:
-							if (readBits(wsabuf->buf[0], 0, 1) == 0) {
-								pIoContext->m_opcode = 1;
-							}
-
-
-							break;
-
-						case 8:
-
-							break;
-
-						case 9:
+					switch (sendFormat.opcode) {
+						case 0: // Continuation frame, add to payload data.
+							std::cout << "Cont. frame received: " << pIoContext->m_connection << std::endl;
 
 							break;
+						case 1: // Text frame, interpret data and send response back.
+							std::cout << "Text frame received: " << pIoContext->m_connection << std::endl;
+
+							std::cout << (int)sendFormat.fin << std::endl;
+
+							memcpy(&wsabuf->buf[0], (uint16_t*)&sendFormat, 2);
+
+							std::cout << std::bitset<8>(wsabuf->buf[0]) << std::bitset<8>(wsabuf->buf[1]) << std::endl;
+
+							  break;
+						case 2: // Binary frame, Will not be used, data is echoed back.
+							std::cout << "Binary frame received: " << pIoContext->m_connection << std::endl;
+
+							break;
+
+						case 8: // Close frame received. Return Close frame and close connection.
+							std::cout << "Close frame received: " << pIoContext->m_connection << std::endl;
+
+							break;
+
+						case 9: // Ping received. Return Pong with same payload and format.
+							std::cout << "Ping Received: " << pIoContext->m_connection << std::endl;
+
+							sendFormat.opcode = 10;
+
+							break;
+						case 10: // Pong received. Can be ignored.
+							std::cout << "Pong Received: " << pIoContext->m_connection << std::endl;
 
 						default:
 							break;
@@ -173,7 +212,7 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
 					break;
 				}
 				case write: {
-					std::cout << totalBytes << " bytes sent" << std::endl;
+					std::cout << totalBytes << " bytes sent: " << pIoContext->m_connection << std::endl;
 
 					pIoContext->m_nSent += totalBytes;
 
