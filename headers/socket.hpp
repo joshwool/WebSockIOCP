@@ -9,12 +9,12 @@ public:
     ~Socket();
     void CloseSocket();
 
-    bool Create(const char* port, const char *address);
+    bool Create(const char* port, const char *address); // Resolves address and creates a socket
 
-    bool Bind();
-    bool Listen();
+    bool Bind(); // Binds socket to address and port
+    bool Listen(); // Listens for new connections
 
-    SOCKET Accept();
+    SOCKET Accept(); // Accepts new connections
 
     SOCKET GetHandle();
 private:

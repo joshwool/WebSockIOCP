@@ -24,18 +24,14 @@ void Buffer::AddData(const char* pData, size_t dataLength) {
 }
 
 void Buffer::ClearBuf() {
-	memset(m_buffer, 0, m_totalSize);
-	m_wsabuf.len = m_totalSize;
-}
-
-char *Buffer::GetBuffer() {
-    return m_buffer;
+	memset(m_buffer, 0, m_totalSize); // Sets all bytes in buffer to 0, effectively clearing it
+	m_wsabuf.len = m_totalSize; // Sets size of readable part to default
 }
 
 WSABUF *Buffer::GetWSABUF() {
-    return &m_wsabuf;
+    return &m_wsabuf; // Returns a pointer to the buffer for socket IO
 }
 
 Bufferpool *Buffer::GetParentPool() {
-	return m_parentPool;
+	return m_parentPool; // Returns a pointer to this buffer's bufferpool
 }

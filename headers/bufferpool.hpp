@@ -14,12 +14,12 @@ public:
 	explicit Bufferpool(int maxBufNum);
 	~Bufferpool();
 
-	void BufferPlace(Buffer *buffer);
-	Buffer *BufferPop();
+	void BufferPlace(Buffer *buffer); // Places buffer back in pool
+	Buffer *BufferPop(); // Pops a buffer out of the pool and returns it.
 
-	int BufferCount();
+	int BufferCount(); // Returns the number of buffers in the pool
 private:
-	std::vector<Buffer*> m_buffers;
+	std::vector<Buffer*> m_buffers; // Vector of pointers to buffers, effectively the bufferpool
 };
 
 #endif // WEBSOCKIOCP_BUFFERPOOL_HPP

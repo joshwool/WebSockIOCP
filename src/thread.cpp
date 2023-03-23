@@ -1,13 +1,13 @@
 #include <thread.hpp>
 
 Thread::Thread(HANDLE iocPort) : m_handle(INVALID_HANDLE_VALUE), m_threadId(0) {
-    m_handle = CreateThread(
-            nullptr,
-            0,
-            Thread::IoWork,
-            iocPort,
-            0,
-            &m_threadId);
+    m_handle = CreateThread( // Creates thread
+	  nullptr,
+	  0,
+	  Thread::IoWork,
+	  iocPort,
+	  0,
+	  &m_threadId);
 
     if (m_handle == INVALID_HANDLE_VALUE) {
         std::cout << "CreateThread() failed: " << GetLastError() << std::endl;
@@ -112,18 +112,12 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
 					std::cout << pIoContext->m_nTotal << " bytes received: " << pIoContext->m_connection << std::endl;
 
 					FrameFormat sendFormat = {0};
-
-					std::cout << (int)sendFormat.fin << std::endl;
+					sendFormat.fin = 1;
 
 					std::string test(wsabuf->buf);
 
-					for (char c : test) {
-						std::cout << std::bitset<8>(c);
-					}
-
-					std::cout << std::endl;
-
-					uint64_t payloadLen = readBits(wsabuf->buf[1], 1, 7); // Gets the value for the initial payload length
+					uint64_t payloadLen = ReadBits(
+					  wsabuf->buf[1], 1, 7); // Gets the value for the initial payload length
 					sendFormat.payloadLen = payloadLen; // Set the 7 bit payload length for the send frame.
 
 					uint8_t paylenSize = 0; // Initialised with 0, as if value of payloadLen is not 126/127 then no extra bytes need to be skipped in future processing
@@ -147,11 +141,11 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
 						}
 					}
 
-					char mask[4];
+					char mask[4 + 1];
 					char payload[payloadLen];
 					payload[payloadLen] = 0;
 
-					if (readBits(wsabuf->buf[1], 0, 1)) {
+					if (ReadBits(wsabuf->buf[1], 0, 1)) {
 						sendFormat.mask = 1;
 						mask[4] = 0;
 						memcpy(&mask, &wsabuf->buf[2 + paylenSize], 4);
@@ -164,10 +158,7 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
 						memcpy(&payload, &wsabuf->buf[2 + paylenSize], payloadLen);
 					}
 
-					std::cout << payload << std::endl;
-
-					sendFormat.fin = 1;
-					sendFormat.opcode = readBits(wsabuf->buf[0], 4, 4);
+					sendFormat.opcode = ReadBits(wsabuf->buf[0], 4, 4);
 					pIoContext->m_buffer->ClearBuf();
 
 					switch (sendFormat.opcode) {
@@ -175,32 +166,122 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
 							std::cout << "Cont. frame received: " << pIoContext->m_connection << std::endl;
 
 							break;
-						case 1: // Text frame, interpret data and send response back.
+						case 1: { // Text frame, interpret data and send response back.
 							std::cout << "Text frame received: " << pIoContext->m_connection << std::endl;
 
-							std::cout << (int)sendFormat.fin << std::endl;
+							memcpy(&wsabuf->buf[0], (uint16_t *)&sendFormat, 2);
 
-							memcpy(&wsabuf->buf[0], (uint16_t*)&sendFormat, 2);
+							if (sendFormat.payloadLen == 127) {
+								int64_t payloadLen = _byteswap_uint64(payloadLen);
+								memcpy(&wsabuf->buf[2], &payloadLen, 8);
+							} else if (sendFormat.payloadLen == 126) {
+								uint16_t temp = payloadLen;
+								temp		  = htons(temp);
+								memcpy(&wsabuf->buf[2], &temp, 2);
+							}
 
-							std::cout << std::bitset<8>(wsabuf->buf[0]) << std::bitset<8>(wsabuf->buf[1]) << std::endl;
+							if (sendFormat.mask) {
+								for (int i = 0; i < 4; i++) {
+									std::random_device rd;
+									std::mt19937 mt(rd());
+									std::uniform_int_distribution<uint8_t> dist(0, 255);
+									wsabuf->buf[2 + paylenSize + i] = dist(mt);
+								}
 
-							  break;
+								for (int i = 0; i < payloadLen; i++) {
+									wsabuf->buf[6 + paylenSize + i] = payload[i] ^ wsabuf->buf[2 + paylenSize + (i % 4)];
+								}
+
+								wsabuf->len = 6 + paylenSize + payloadLen;
+							} else {
+								memcpy(&wsabuf->buf[2 + paylenSize], &payload, payloadLen);
+
+								wsabuf->len = 2 + paylenSize + payloadLen;
+							}
+
+							pIoContext->m_ioEvent = write;
+
+							int result = WSASend(
+							  pIoContext->m_connection,
+							  wsabuf,
+							  1,
+							  nullptr,
+							  pIoContext->m_flags,
+							  &(pIoContext->m_Overlapped),
+							  nullptr);
+
+							if (result != 0 && WSAGetLastError() != 997) {
+								std::cout << "WSASend() failed: " << WSAGetLastError() << std::endl;
+							}
+
+							break;
+						}
 						case 2: // Binary frame, Will not be used, data is echoed back.
 							std::cout << "Binary frame received: " << pIoContext->m_connection << std::endl;
 
 							break;
-
-						case 8: // Close frame received. Return Close frame and close connection.
-							std::cout << "Close frame received: " << pIoContext->m_connection << std::endl;
-
-							break;
-
 						case 9: // Ping received. Return Pong with same payload and format.
-							std::cout << "Ping Received: " << pIoContext->m_connection << std::endl;
-
 							sendFormat.opcode = 10;
+						case 8: { // Close frame received. Return Close frame and close connection.
+							if (sendFormat.opcode == 8) {
+								std::cout << "Close frame received: " << pIoContext->m_connection << std::endl;
+							}
+							else {
+								std::cout << "Ping received: " << pIoContext->m_connection << std::endl;
+							}
+
+							memcpy(&wsabuf->buf[0], (uint16_t *)&sendFormat, 2);
+
+							if (sendFormat.payloadLen == 127) {
+								int64_t payloadLen = _byteswap_uint64(payloadLen);
+								memcpy(&wsabuf->buf[2], &payloadLen, 8);
+							} else if (sendFormat.payloadLen == 126) {
+								uint16_t temp = payloadLen;
+								temp		  = htons(temp);
+								memcpy(&wsabuf->buf[2], &temp, 2);
+							}
+
+							if (sendFormat.mask) {
+								for (int i = 0; i < 4; i++) {
+									std::random_device rd;
+									std::mt19937 mt(rd());
+									std::uniform_int_distribution<uint8_t> dist(0, 255);
+									wsabuf->buf[2 + paylenSize + i] = dist(mt);
+								}
+
+								for (int i = 0; i < payloadLen; i++) {
+									wsabuf->buf[6 + paylenSize + i] =
+									  payload[i] ^ wsabuf->buf[2 + paylenSize + (i % 4)];
+								}
+
+								wsabuf->len = 6 + paylenSize + payloadLen;
+							} else {
+								memcpy(&wsabuf->buf[2 + paylenSize], &payload, payloadLen);
+
+								wsabuf->len = 2 + paylenSize + payloadLen;
+							}
+
+							if (sendFormat.opcode == 8) {
+								pIoContext->m_ioEvent = close;
+							}
+							else {
+								pIoContext->m_ioEvent = write;
+							}
+
+							int result = WSASend(pIoContext->m_connection,
+												 wsabuf,
+												 1,
+												 nullptr,
+												 pIoContext->m_flags,
+												 &(pIoContext->m_Overlapped),
+												 nullptr);
+
+							if (result != 0 && WSAGetLastError() != 997) {
+								std::cout << "WSASend() failed: " << WSAGetLastError() << std::endl;
+							}
 
 							break;
+						}
 						case 10: // Pong received. Can be ignored.
 							std::cout << "Pong Received: " << pIoContext->m_connection << std::endl;
 
@@ -252,6 +333,11 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
 					pIoContext->Release();
 					break;
 				}
+				case close: {
+					pIoContext->Release();
+
+					break;
+				}
 			}
         } else {
 			std::cout << GetLastError() << std::endl;
@@ -270,14 +356,13 @@ std::string Thread::KeyCalc(std::string key) {
 
 	std::string binHash;
 
-	for (unsigned char i : keyHash) { binHash.append(std::bitset<8>(i).to_string());
-	}
+	for (unsigned char i : keyHash) { binHash.append(std::bitset<8>(i).to_string());}
 
 	binHash.append("00");
 
 	char b64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-	char b64hash[28];
+	char b64hash[28 + 1];
 
 	for (int i = 0; i < 28; i++) {
 		if (i*6 < binHash.size()) {
@@ -296,7 +381,7 @@ std::string Thread::KeyCalc(std::string key) {
 	return b64hash;
 }
 
-uint8_t Thread::readBits(const unsigned char c, uint8_t msb, uint8_t n) {
+uint8_t Thread::ReadBits(unsigned char c, uint8_t msb, uint8_t n) {
 	uint8_t total = 0;
 
 	msb = 7 - msb;

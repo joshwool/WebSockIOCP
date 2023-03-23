@@ -12,7 +12,7 @@ void Socket::CloseSocket() {
     }
 }
 
-bool Socket::Create(const char* port, const char *address) {
+bool Socket::Create(const char* port, const char *address) { // Resolves
     addrinfo hints = {}, *res;
 
     ZeroMemory(&hints, sizeof(hints));
@@ -52,7 +52,7 @@ bool Socket::Create(const char* port, const char *address) {
     return true;
 }
 
-bool Socket::Bind() {
+bool Socket::Bind() { // Binds socket to port and address
     int result = bind(
             m_handle,
             &m_address,
@@ -66,7 +66,7 @@ bool Socket::Bind() {
     return true;
 }
 
-bool Socket::Listen() {
+bool Socket::Listen() { // Starts listening for connections on socket
     if (Bind()) {
         if (listen(m_handle, SOMAXCONN) != 0) {
             std::cout << "listen() failed: " << WSAGetLastError() << std::endl;
@@ -77,11 +77,11 @@ bool Socket::Listen() {
     }
 }
 
-SOCKET Socket::Accept() {
+SOCKET Socket::Accept() { // Accepts connections on socket and returns connection's socket handle
 	SOCKET connection = INVALID_SOCKET;
 
-	while (true) {
-		connection = WSAAccept(
+	while (true) { // Indefinitely loops until successful connection found
+		connection = WSAAccept( // Waits for connection and accepts it
 		  m_handle,
 		  nullptr,
 		  nullptr,
@@ -91,7 +91,7 @@ SOCKET Socket::Accept() {
 		if (connection != INVALID_SOCKET) {
 			std::cout << "Connection found: " << connection << std::endl;
 
-			return connection;
+			return connection; // Returns socket handle of new connection
 		}
 		else {
 			std::cout << WSAGetLastError() << std::endl;

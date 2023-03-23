@@ -22,7 +22,6 @@ public:
 
     void Run();
 
-	void Test();
 private:
     Socket m_listenSocket;
     IoCPort m_iocPort;

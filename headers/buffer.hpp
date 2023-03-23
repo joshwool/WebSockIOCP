@@ -7,16 +7,14 @@ class Bufferpool;
 
 class Buffer {
 public:
-    void SetupWSABUF();
+    void SetupWSABUF(); // Sets up buffer for use in socket IO
 
 	Buffer(size_t bufSize, Bufferpool *parentPool);
 	~Buffer();
 
-	void AddData(const char* pData, size_t dataLength);
+	void AddData(const char* pData, size_t dataLength); // Adds data to the buffer
 
-    void ClearBuf();
-
-    char *GetBuffer();
+    void ClearBuf(); // Clears the buffer of all contents
 
     WSABUF *GetWSABUF();
 

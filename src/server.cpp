@@ -15,27 +15,27 @@ Server::Server(const char *port, const char *address, int maxSocketNum, int maxT
 
 
 
-bool Server::Setup() {
+bool Server::Setup() { // Creates a socket on server's port and address
     if (m_listenSocket.Create(m_port, m_address)) {
+		return true;
     }
     else {
         return false;
     }
-    return true;
 }
 
 void Server::Run() {
     if (m_listenSocket.Listen()) {
-        while (true) {
+        while (true) { // Loops indefinitely, accepting new connections and assigning to the IO completion port
             SOCKET new_con = m_listenSocket.Accept();
 
-			auto *pIoContext = new IoContext(m_bufferpool.BufferPop(), new_con);
+			auto *pIoContext = new IoContext(m_bufferpool.BufferPop(), new_con); // Creates a new IoContext object for the connection
 
-			m_iocPort.AssignSocket(new_con, ULONG_PTR(pIoContext));
+			m_iocPort.AssignSocket(new_con, ULONG_PTR(pIoContext)); // Assigns the new connection to the IO completion port
 
 			pIoContext->m_ioEvent = initialRead;
 
-			int result = WSARecv(
+			int result = WSARecv( // Posts initial receive on socket
 			  new_con,
 			  pIoContext->m_buffer->GetWSABUF(),
 			  1,
@@ -44,7 +44,7 @@ void Server::Run() {
 			  &(pIoContext->m_Overlapped),
 			  nullptr);
 
-			if (result != 0 && WSAGetLastError() != 997) {
+			if (result != 0 && WSAGetLastError() != ERROR_IO_PENDING) { // IO Pending errors ignored as operation will complete later
 				std::cout << "WSARecv() failed: " << WSAGetLastError() << std::endl;
 			}
         }

@@ -13,7 +13,7 @@ public:
 
     void PostCompletionPacket(ULONG_PTR completionKey); // This function allows me to send my own completion packets through to the threads
 
-    HANDLE GetHandle();
+    HANDLE GetHandle(); // Returns handle of the IOCP
 private:
     HANDLE m_handle;
 };
