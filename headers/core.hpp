@@ -8,7 +8,7 @@
 #include <winsock2.h> // Windows Sockets 2 header
 #include <ws2tcpip.h> // Windows Sockets 2 TCP/IP header
 #include <mswsock.h> // Microsoft Windows Sockets header
-#include <mysqlx/xdevapi.h> // MySQL API header
+#include <sqlite3.h> // SQLite header
 
 #include <vector>
 #include <iostream>

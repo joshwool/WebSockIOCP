@@ -31,7 +31,7 @@ public:
 
 	static uint8_t ReadBits(unsigned char c, uint8_t msb, uint8_t n); // Reads specific bits in a byte and returns the value.
 
-	static char *GenerateResponse(char payload[]);
+	static char *GenerateResponse(char payload[], Database *db);
 
     bool Terminate(); // Terminates current thread
 private:

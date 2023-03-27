@@ -48,6 +48,7 @@ bool Socket::Create(const char* port, const char *address) { // Resolves
     m_address = *res->ai_addr;
     m_addrlen = (int)res->ai_addrlen;
     freeaddrinfo(res);
+	return true;
 }
 
 bool Socket::Bind() { // Binds socket to port and address
@@ -73,6 +74,7 @@ bool Socket::Listen() { // Starts listening for connections on socket
         }
         return true;
     }
+	return false;
 }
 
 SOCKET Socket::Accept() { // Accepts connections on socket and returns connection's socket handle

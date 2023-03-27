@@ -143,7 +143,7 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
 					}
 
 					char mask[4 + 1];
-					char payload[payloadLen];
+					char payload[INIT_BUF_MEM];
 					payload[payloadLen] = 0;
 
 					if (ReadBits(wsabuf->buf[1], 0, 1)) {
@@ -159,8 +159,6 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
 						memcpy(&payload, &wsabuf->buf[2 + paylenSize], payloadLen);
 					}
 
-
-
 					sendFormat.opcode = ReadBits(wsabuf->buf[0], 4, 4);
 					pIoContext->m_buffer->ClearBuf();
 
@@ -173,6 +171,8 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
 							std::cout << "Text frame received: " << pIoContext->m_connection << std::endl;
 
 							memcpy(&wsabuf->buf[0], (uint16_t *)&sendFormat, 2);
+
+							GenerateResponse(payload, pIoContext->m_db);
 
 							if (sendFormat.payloadLen == 127) {
 								int64_t payloadLen = _byteswap_uint64(payloadLen);
@@ -187,7 +187,7 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
 								for (int i = 0; i < 4; i++) {
 									std::random_device rd;
 									std::mt19937 mt(rd());
-									std::uniform_int_distribution<uint8_t> dist(0, 255);
+									std::uniform_real_distribution<float> dist(0, 256);
 									wsabuf->buf[2 + paylenSize + i] = dist(mt);
 								}
 
@@ -248,7 +248,7 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
 								for (int i = 0; i < 4; i++) {
 									std::random_device rd;
 									std::mt19937 mt(rd());
-									std::uniform_int_distribution<uint8_t> dist(0, 255);
+									std::uniform_real_distribution<float> dist(0.0, 256.0);
 									wsabuf->buf[2 + paylenSize + i] = dist(mt);
 								}
 
@@ -397,12 +397,22 @@ uint8_t Thread::ReadBits(unsigned char c, uint8_t msb, uint8_t n) {
 	return total;
 }
 
-char *Thread::GenerateResponse(char payload[]) {
+char *Thread::GenerateResponse(char payload[], Database *db) {
 	json data = json::parse(payload);
 
 	if (data["operation"] == "register") {
+		char salt[16];
+
+		for (char & i : salt) {
+			std::random_device rd;
+			std::mt19937 mt(rd());
+			std::uniform_real_distribution<float> dist(0.0, 256.0);
+			i = dist(mt);
+		}
 
 	}
+
+	return "test";
 }
 
 bool Thread::Terminate() {

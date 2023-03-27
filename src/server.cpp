@@ -1,23 +1,18 @@
 #include <server.hpp>
 
-Server::Server(const char *port, const char *address, int maxSocketNum, int maxThreadCount, int maxBufNum)
-    :
+Server::Server(const char *port, const char *address, char *db_dir, int maxThreadCount, int maxBufNum) :
 		m_port(port),
       	m_address(address),
       	m_iocPort(maxThreadCount),
 		m_threadpool(maxThreadCount, m_iocPort.GetHandle()),
-		m_bufferpool(maxBufNum) {
-
+		m_bufferpool(maxBufNum),
+		m_db(db_dir) {
 }
 
 
 
 bool Server::Setup() { // Creates a socket on server's port and address
     if (m_listenSocket.Create(m_port, m_address)) {
-
-		mysqlx::Session sess("localhost", 33060, "root", MYSQL_PWORD);
-		m_database = sess.getSchema("typeprac");
-
 		return true;
     }
     else {
@@ -30,7 +25,7 @@ void Server::Run() {
         while (true) { // Loops indefinitely, accepting new connections and assigning to the IO completion port
             SOCKET new_con = m_listenSocket.Accept();
 
-			auto *pIoContext = new IoContext(m_bufferpool.BufferPop(), new_con); // Creates a new IoContext object for the connection
+			auto *pIoContext = new IoContext(m_bufferpool.BufferPop(), &m_db, new_con); // Creates a new IoContext object for the connection
 
 			m_iocPort.AssignSocket(new_con, ULONG_PTR(pIoContext)); // Assigns the new connection to the IO completion port
 

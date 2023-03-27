@@ -1,3 +1,2 @@
 .clang-format
-/mysql_con
-/headers/private.hpp
+/sqlite

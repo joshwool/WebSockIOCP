@@ -1,15 +1,15 @@
 #include <iocontext.hpp>
 
-IoContext::IoContext(Buffer *buffer, mysqlx::Schema *database, SOCKET connection)
+IoContext::IoContext(Buffer *buffer, Database *db, SOCKET connection)
 	:
-		m_refCount(1), // Ref Count initialised at 1 so only reaches 0 on connection close
-		m_nTotal(0),
 		m_Overlapped({}),
+		m_refCount(1), // Ref Count initialised at 1 so only reaches 0 on connection close
 		m_nSent(0),
+		m_nTotal(0),
+		m_flags(0),
 		m_connection(connection),
 		m_buffer(buffer),
-		m_flags(0),
-		m_database(database) {
+		m_db(db) {
 }
 
 IoContext::~IoContext() {

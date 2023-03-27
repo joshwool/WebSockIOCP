@@ -8,16 +8,11 @@
 #include <iocp.hpp>
 #include <iocontext.hpp>
 #include <threadpool.hpp>
-#include <private.hpp>
+#include <database.hpp>
 
 class Server {
 public:
-    Server(
-      const char *port,
-      const char *address,
-      int maxSocketNum,
-      int maxThreadCount,
-      int maxBufNum);
+	Server(const char *port, const char *address, char *db_dir, int maxThreadCount, int maxBufNum);
 
     bool Setup();
 
@@ -28,7 +23,7 @@ private:
     IoCPort m_iocPort;
     Threadpool m_threadpool;
 	Bufferpool m_bufferpool;
-	mysqlx::Schema m_database;
+	Database m_db;
 
     const char *m_port;
     const char *m_address;
