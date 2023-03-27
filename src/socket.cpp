@@ -44,12 +44,10 @@ bool Socket::Create(const char* port, const char *address) { // Resolves
     if (m_handle == INVALID_SOCKET) {
         std::cout << "socket() failed: " << WSAGetLastError() << std::endl;
         WSACleanup();
-        return false;
     }
     m_address = *res->ai_addr;
     m_addrlen = (int)res->ai_addrlen;
     freeaddrinfo(res);
-    return true;
 }
 
 bool Socket::Bind() { // Binds socket to port and address

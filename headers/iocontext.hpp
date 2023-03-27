@@ -15,7 +15,7 @@ enum IoEvent {
 
 class IoContext {
 public:
-    IoContext(Buffer *buffer, SOCKET connection);
+    IoContext(Buffer *buffer, mysqlx::Schema *database, SOCKET connection);
     ~IoContext();
 
 	void AddRef(); // Increments Ref Count
@@ -30,6 +30,7 @@ public:
 	DWORD m_flags; // Flags for IO operations
     SOCKET m_connection; // Socket handle, for connection
 	IoEvent m_ioEvent; // Enumeration with all possible IO events
+	mysqlx::Schema *m_database; // SQL Database
 };
 
 #endif //WEBSOCKIOCP_IOCONTEXT_HPP

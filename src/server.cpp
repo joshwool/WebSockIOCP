@@ -4,19 +4,20 @@ Server::Server(const char *port, const char *address, int maxSocketNum, int maxT
     :
 		m_port(port),
       	m_address(address),
-		m_maxSocketNum(maxSocketNum),
-		m_maxThreadCount(maxThreadCount),
-		m_maxBufNum(maxBufNum),
       	m_iocPort(maxThreadCount),
 		m_threadpool(maxThreadCount, m_iocPort.GetHandle()),
 		m_bufferpool(maxBufNum) {
-    InitializeCriticalSection(&m_criticalSection);
+
 }
 
 
 
 bool Server::Setup() { // Creates a socket on server's port and address
     if (m_listenSocket.Create(m_port, m_address)) {
+
+		mysqlx::Session sess("localhost", 33060, "root", MYSQL_PWORD);
+		m_database = sess.getSchema("typeprac");
+
 		return true;
     }
     else {

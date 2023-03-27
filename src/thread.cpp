@@ -1,5 +1,7 @@
 #include <thread.hpp>
 
+using json = nlohmann::json;
+
 Thread::Thread(HANDLE iocPort) : m_handle(INVALID_HANDLE_VALUE), m_threadId(0) {
     m_handle = CreateThread( // Creates thread
 	  nullptr,
@@ -22,30 +24,29 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
     auto iocpHandle = (HANDLE)IoCPort;
 
     while (true) {
-		DWORD totalBytes;
-		DWORD sentBytes;
-		IoContext *pIoContext;
-		LPWSAOVERLAPPED overlapped;
+		DWORD totalBytes; // Total bytes involved in completed operation.
+ 		IoContext *pIoContext; // Pointer to an IO context object;
+		LPWSAOVERLAPPED overlapped; // Pointer to overlapped struct, passed with every IO operation.
 
-        if (GetQueuedCompletionStatus(
+        if (GetQueuedCompletionStatus( // Gets completion packets from completion queue
                 iocpHandle,
                 &totalBytes,
-                (PULONG_PTR)&pIoContext,
+                (PULONG_PTR)&pIoContext, // Assigns completion key pointer to pIoContext
                 &overlapped,
                 INFINITE)) {
 
-			if (totalBytes == 0) {
+			if (totalBytes == 0) { // If number of bytes transferred is 0 connection has been closed.
 				std::cout << "Connection Closing: " << pIoContext->m_connection << std::endl;
-				pIoContext->Release();
+				pIoContext->Release(); // Releases reference to pIoContext a second time allowing connection to be dleleted
 				break;
 			}
 
-			pIoContext->AddRef();
-			WSABUF *wsabuf = pIoContext->m_buffer->GetWSABUF();
+			pIoContext->AddRef(); // Adds reference to IoContext object
+			WSABUF *wsabuf = pIoContext->m_buffer->GetWSABUF(); // Stores pointer to buffer on stack for easier access.
 
 			switch(pIoContext->m_ioEvent) {
 				case initialRead: {
-					pIoContext->m_nTotal = totalBytes;
+					pIoContext->m_nTotal = totalBytes; // Total bytes in buffer = total bytes received
 
 					std::cout << pIoContext->m_nTotal << " bytes received: " << pIoContext->m_connection << std::endl;
 
@@ -157,6 +158,8 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
 					else {
 						memcpy(&payload, &wsabuf->buf[2 + paylenSize], payloadLen);
 					}
+
+
 
 					sendFormat.opcode = ReadBits(wsabuf->buf[0], 4, 4);
 					pIoContext->m_buffer->ClearBuf();
@@ -392,6 +395,14 @@ uint8_t Thread::ReadBits(unsigned char c, uint8_t msb, uint8_t n) {
 		total += isOne << (n - i - 1);
 	}
 	return total;
+}
+
+char *Thread::GenerateResponse(char payload[]) {
+	json data = json::parse(payload);
+
+	if (data["operation"] == "register") {
+
+	}
 }
 
 bool Thread::Terminate() {

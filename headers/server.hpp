@@ -8,6 +8,7 @@
 #include <iocp.hpp>
 #include <iocontext.hpp>
 #include <threadpool.hpp>
+#include <private.hpp>
 
 class Server {
 public:
@@ -27,15 +28,10 @@ private:
     IoCPort m_iocPort;
     Threadpool m_threadpool;
 	Bufferpool m_bufferpool;
-
-    CRITICAL_SECTION m_criticalSection;
+	mysqlx::Schema m_database;
 
     const char *m_port;
     const char *m_address;
-
-    int m_maxBufNum;
-    int m_maxSocketNum;
-    int m_maxThreadCount;
 };
 
 #endif //WEBSOCKSERVER_SERVER_HPP

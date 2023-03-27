@@ -1,7 +1,6 @@
 #include <iocontext.hpp>
-#include <utility>
 
-IoContext::IoContext(Buffer *buffer, SOCKET connection)
+IoContext::IoContext(Buffer *buffer, mysqlx::Schema *database, SOCKET connection)
 	:
 		m_refCount(1), // Ref Count initialised at 1 so only reaches 0 on connection close
 		m_nTotal(0),
@@ -9,7 +8,8 @@ IoContext::IoContext(Buffer *buffer, SOCKET connection)
 		m_nSent(0),
 		m_connection(connection),
 		m_buffer(buffer),
-		m_flags(0) {
+		m_flags(0),
+		m_database(database) {
 }
 
 IoContext::~IoContext() {
