@@ -12,6 +12,7 @@
 
 #include <vector>
 #include <iostream>
+#include <string>
 
 #define INIT_BUF_MEM 1024 // Initial Buffer memory
 

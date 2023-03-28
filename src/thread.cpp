@@ -2,6 +2,9 @@
 
 using json = nlohmann::json;
 
+char b64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+char hexmap[] = "123456789abcdef";
+
 Thread::Thread(HANDLE iocPort) : m_handle(INVALID_HANDLE_VALUE), m_threadId(0) {
     m_handle = CreateThread( // Creates thread
 	  nullptr,
@@ -119,7 +122,6 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
 
 					uint64_t payloadLen = ReadBits(
 					  wsabuf->buf[1], 1, 7); // Gets the value for the initial payload length
-					sendFormat.payloadLen = payloadLen; // Set the 7 bit payload length for the send frame.
 
 					uint8_t paylenSize = 0; // Initialised with 0, as if value of payloadLen is not 126/127 then no extra bytes need to be skipped in future processing
 
@@ -170,18 +172,23 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
 						case 1: { // Text frame, interpret data and send response back.
 							std::cout << "Text frame received: " << pIoContext->m_connection << std::endl;
 
-							memcpy(&wsabuf->buf[0], (uint16_t *)&sendFormat, 2);
+							std::string response = GenerateResponse(payload, pIoContext->m_db);
 
-							GenerateResponse(payload, pIoContext->m_db);
-
-							if (sendFormat.payloadLen == 127) {
-								int64_t payloadLen = _byteswap_uint64(payloadLen);
+							if (response.length() > 65535) {
+								sendFormat.payloadLen = 127;
+								int64_t payloadLen = _byteswap_uint64(response.length());
 								memcpy(&wsabuf->buf[2], &payloadLen, 8);
-							} else if (sendFormat.payloadLen == 126) {
-								uint16_t temp = payloadLen;
-								temp		  = htons(temp);
+							} else if (response.length() > 125) {
+								sendFormat.payloadLen = 126;
+								uint16_t temp = response.length();
+								temp = htons(temp);
 								memcpy(&wsabuf->buf[2], &temp, 2);
 							}
+							else {
+								sendFormat.payloadLen = response.length();
+							}
+
+							memcpy(&wsabuf->buf[0], (uint16_t *)&sendFormat, 2);
 
 							if (sendFormat.mask) {
 								for (int i = 0; i < 4; i++) {
@@ -191,16 +198,18 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
 									wsabuf->buf[2 + paylenSize + i] = dist(mt);
 								}
 
-								for (int i = 0; i < payloadLen; i++) {
-									wsabuf->buf[6 + paylenSize + i] = payload[i] ^ wsabuf->buf[2 + paylenSize + (i % 4)];
+								for (int i = 0; i < response.length(); i++) {
+									wsabuf->buf[6 + paylenSize + i] = response[i] ^ wsabuf->buf[2 + paylenSize + (i % 4)];
 								}
 
-								wsabuf->len = 6 + paylenSize + payloadLen;
+								wsabuf->len = 6 + paylenSize + response.length();
 							} else {
-								memcpy(&wsabuf->buf[2 + paylenSize], &payload, payloadLen);
+								memcpy(&wsabuf->buf[2 + paylenSize], &response[0], response.length());
 
-								wsabuf->len = 2 + paylenSize + payloadLen;
+								wsabuf->len = 2 + paylenSize + response.length();
 							}
+
+
 
 							pIoContext->m_ioEvent = write;
 
@@ -363,8 +372,6 @@ std::string Thread::KeyCalc(std::string key) {
 
 	binHash.append("00");
 
-	char b64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
 	char b64hash[28 + 1];
 
 	for (int i = 0; i < 28; i++) {
@@ -397,22 +404,103 @@ uint8_t Thread::ReadBits(unsigned char c, uint8_t msb, uint8_t n) {
 	return total;
 }
 
-char *Thread::GenerateResponse(char payload[], Database *db) {
+std::string Thread::GenerateResponse(char payload[], Database *db) {
 	json data = json::parse(payload);
+	json response;
 
-	if (data["operation"] == "register") {
-		char salt[16];
+	response["result"] = 1;
+	response["errmsgs"] = {};
 
-		for (char & i : salt) {
-			std::random_device rd;
-			std::mt19937 mt(rd());
-			std::uniform_real_distribution<float> dist(0.0, 256.0);
-			i = dist(mt);
+	if (data["operation"].get<std::string>() == "register") {
+
+		std::string username = data["username"].get<std::string>();
+		std::string email = data["email"].get<std::string>();
+		std::string password = data["password"].get<std::string>();
+
+		if (db->SelectCount("users", "username", username.c_str())) {
+			response["result"] = 0;
+			response["errmsgs"].push_back("Username taken.");
 		}
 
-	}
+		if (db->SelectCount("users", "email", email.c_str())) {
+			response["result"] = 0;
+			response["errmsgs"].push_back("Email already exists.");
+		}
 
-	return "test";
+		if (!response["result"].get<int>()) {
+			return to_string(response);
+		}
+		else {
+			char saltBytes[8];
+
+			for (char & saltByte : saltBytes) { // Generate salt of 8 random bytes
+				std::random_device rd;
+				std::mt19937 mt(rd());
+				std::uniform_real_distribution<float> dist(0, 256);
+				saltByte = dist(mt);
+			}
+
+			std::string saltHex = ByteToHex<char*>(saltBytes, 8); // Convert byte array to hex representation
+
+			std::cout << saltHex << std::endl;
+
+			unsigned char pwordHash[SHA256_DIGEST_LENGTH];
+
+			auto data = reinterpret_cast<const unsigned char*>((password + saltHex).c_str());
+
+			SHA256(data, password.size(), pwordHash);
+
+			std::string pwordHashHex = ByteToHex<unsigned char*>(pwordHash, 32);
+
+			char* query = "INSERT INTO users (username, email, pword_hash, salt) VALUES (?, ?, ?, ?);";
+			std::vector<std::string> values = {username, email, pwordHashHex, saltHex};
+
+			if (db->Insert(query, values)) {
+				char sessionIdBytes[16];
+
+				for (char & byte : sessionIdBytes) { // Generate salt of 8 random bytes
+					std::random_device rd;
+					std::mt19937 mt(rd());
+					std::uniform_real_distribution<float> dist(0, 256);
+					byte = dist(mt);
+				}
+
+				std::string sessionId = ByteToHex(sessionIdBytes, 16);
+
+				/*
+				 * Checks if there is already a sessionId with the same value assigned.
+				 * Extremely improbable as there is ~1.84e+19 possible values for the sessionId,
+				 * but will cause problems if duplicates occur.
+				 */
+				while (db->SelectCount("sessions", "id", sessionId.c_str())) {
+					for (char & byte : sessionIdBytes) { // Generate salt of 8 random bytes
+						std::random_device rd;
+						std::mt19937 mt(rd());
+						std::uniform_real_distribution<float> dist(0, 256);
+						byte = dist(mt);
+					}
+
+					sessionId = ByteToHex(sessionIdBytes, 16);
+				}
+
+				query = "INSERT INTO sessions (id, user_id) SELECT ?, id FROM users WHERE username = ?;";
+				values = {sessionId, username};
+
+				if (db->Insert(query, values)) {
+					response["sessionId"] = "sessionId";
+				}
+				else {
+					response["result"] = 0;
+					response["errmsgs"].push_back("Server error: 2");
+				}
+			}
+			else {
+				response["result"] = 0;
+				response["errmsgs"].push_back("Server error: 1");
+			}
+		}
+		return to_string(response);
+	}
 }
 
 bool Thread::Terminate() {

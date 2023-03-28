@@ -12,7 +12,11 @@ public:
 	Database(const char *dir);
 	~Database();
 
-	void Operation(char *operation);
+	void Create(char *query); // General function for Create statements
+
+	bool Insert(char *query, std::vector<std::string> values);
+
+	int SelectCount(const std::string& table, const std::string& columnName, const char *value); // Separate function for SELECT (Read) statements as they require special callback
 private:
 	sqlite3 *m_db;
 };

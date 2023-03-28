@@ -10,6 +10,8 @@
 #include <random>
 #include <nlohmann/json.hpp>
 
+extern char hexmap[];
+
 class Threadpool;
 
 typedef struct FrameFormat { // Frame format explained further in docs
@@ -31,7 +33,18 @@ public:
 
 	static uint8_t ReadBits(unsigned char c, uint8_t msb, uint8_t n); // Reads specific bits in a byte and returns the value.
 
-	static char *GenerateResponse(char payload[], Database *db);
+	template<typename T> static std::string ByteToHex(T bytes, uint8_t length) {
+		std::string hex(length * 2, ' ');
+
+		for (int i = 0; i < length; i++) {
+			hex[i * 2] = hexmap[(bytes[i] & 0xF0) >> 4];
+			hex[i * 2 + 1] = hexmap[bytes[i] & 0x0F];
+		}
+
+		return hex;
+	}
+
+	static std::string GenerateResponse(char payload[], Database *db);
 
     bool Terminate(); // Terminates current thread
 private:
