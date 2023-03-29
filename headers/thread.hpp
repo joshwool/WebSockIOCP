@@ -5,11 +5,6 @@
 
 #include <iocontext.hpp>
 
-#include <openssl/sha.h>
-#include <bitset>
-#include <random>
-#include <nlohmann/json.hpp>
-
 extern char hexmap[];
 
 class Threadpool;
@@ -33,6 +28,8 @@ public:
 
 	static uint8_t ReadBits(unsigned char c, uint8_t msb, uint8_t n); // Reads specific bits in a byte and returns the value.
 
+	static std::string GenerateResponse(char payload[], Database *db); // Generates response from payload
+
 	template<typename T> static std::string ByteToHex(T bytes, uint8_t length) {
 		std::string hex(length * 2, ' ');
 
@@ -44,7 +41,8 @@ public:
 		return hex;
 	}
 
-	static std::string GenerateResponse(char payload[], Database *db);
+	static std::string GenPWordHash(const unsigned char* data);
+	static std::string GenSessionID(Database *db);
 
     bool Terminate(); // Terminates current thread
 private:

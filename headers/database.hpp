@@ -16,7 +16,12 @@ public:
 
 	bool Insert(char *query, std::vector<std::string> values);
 
-	int SelectCount(const std::string& table, const std::string& columnName, const char *value); // Separate function for SELECT (Read) statements as they require special callback
+	// Separate function for SELECT (Read) statements as they require special callback
+	std::string SelectString(char *query, std::vector<std::string> values);
+	std::vector<std::string> SelectMultiple(char *query, std::vector<std::string> values, int columns);
+	int SelectCount(const std::string& table, const std::string& columnName, const char *value);
+
+	bool Update(char *query, std::vector<std::string> values);
 private:
 	sqlite3 *m_db;
 };

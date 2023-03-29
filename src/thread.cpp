@@ -3,7 +3,7 @@
 using json = nlohmann::json;
 
 char b64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-char hexmap[] = "123456789abcdef";
+char hexmap[] = "0123456789abcdef";
 
 Thread::Thread(HANDLE iocPort) : m_handle(INVALID_HANDLE_VALUE), m_threadId(0) {
     m_handle = CreateThread( // Creates thread
@@ -355,6 +355,7 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
 			std::cout << GetLastError() << std::endl;
 		}
     }
+	return 0;
 }
 
 std::string Thread::KeyCalc(std::string key) {
@@ -405,102 +406,268 @@ uint8_t Thread::ReadBits(unsigned char c, uint8_t msb, uint8_t n) {
 }
 
 std::string Thread::GenerateResponse(char payload[], Database *db) {
-	json data = json::parse(payload);
+	json data;
 	json response;
 
-	response["result"] = 1;
-	response["errmsgs"] = {};
+	try { // If payload passed is not in JSON format then just send back an error response
+		data = json::parse(payload);
+	} catch (json::parse_error& e) {
+		std::cout << "Parse error: " << e.what() << std::endl;
+		response["result"] = 0;
+		response["errmsgs"] = {"Not in JSON Format"};
+		return to_string(response);
+	}
 
-	if (data["operation"].get<std::string>() == "register") {
+	int operation = data["operation"].get<int>();
 
-		std::string username = data["username"].get<std::string>();
-		std::string email = data["email"].get<std::string>();
-		std::string password = data["password"].get<std::string>();
+	response["operation"] = operation;
+	response["result"]	  = 1;
+	response["errmsgs"]	  = {};
 
-		if (db->SelectCount("users", "username", username.c_str())) {
-			response["result"] = 0;
-			response["errmsgs"].push_back("Username taken.");
-		}
+	switch (operation) {
+		case 1: { // register operation
+			std::string username = data["username"].get<std::string>();
+			std::string email	 = data["email"].get<std::string>();
+			std::string password = data["password"].get<std::string>();
 
-		if (db->SelectCount("users", "email", email.c_str())) {
-			response["result"] = 0;
-			response["errmsgs"].push_back("Email already exists.");
-		}
-
-		if (!response["result"].get<int>()) {
-			return to_string(response);
-		}
-		else {
-			char saltBytes[8];
-
-			for (char & saltByte : saltBytes) { // Generate salt of 8 random bytes
-				std::random_device rd;
-				std::mt19937 mt(rd());
-				std::uniform_real_distribution<float> dist(0, 256);
-				saltByte = dist(mt);
+			if (db->SelectCount("users", "username", username.c_str())) {
+				response["result"] = 0;
+				response["errmsgs"].push_back("Username taken.");
 			}
 
-			std::string saltHex = ByteToHex<char*>(saltBytes, 8); // Convert byte array to hex representation
+			if (db->SelectCount("users", "email", email.c_str())) {
+				response["result"] = 0;
+				response["errmsgs"].push_back("Email already exists.");
+			}
 
-			std::cout << saltHex << std::endl;
+			if (!response["result"].get<int>()) {
+				return to_string(response);
+			} else {
+				char saltBytes[8];
 
-			unsigned char pwordHash[SHA256_DIGEST_LENGTH];
-
-			auto data = reinterpret_cast<const unsigned char*>((password + saltHex).c_str());
-
-			SHA256(data, password.size(), pwordHash);
-
-			std::string pwordHashHex = ByteToHex<unsigned char*>(pwordHash, 32);
-
-			char* query = "INSERT INTO users (username, email, pword_hash, salt) VALUES (?, ?, ?, ?);";
-			std::vector<std::string> values = {username, email, pwordHashHex, saltHex};
-
-			if (db->Insert(query, values)) {
-				char sessionIdBytes[16];
-
-				for (char & byte : sessionIdBytes) { // Generate salt of 8 random bytes
+				for (char &saltByte : saltBytes) { // Generate salt of 8 random bytes
 					std::random_device rd;
 					std::mt19937 mt(rd());
 					std::uniform_real_distribution<float> dist(0, 256);
-					byte = dist(mt);
+					saltByte = dist(mt);
 				}
 
-				std::string sessionId = ByteToHex(sessionIdBytes, 16);
+				std::string saltHex =
+				  ByteToHex<char *>(saltBytes, 8); // Convert byte array to hex representation
 
-				/*
-				 * Checks if there is already a sessionId with the same value assigned.
-				 * Extremely improbable as there is ~1.84e+19 possible values for the sessionId,
-				 * but will cause problems if duplicates occur.
-				 */
-				while (db->SelectCount("sessions", "id", sessionId.c_str())) {
-					for (char & byte : sessionIdBytes) { // Generate salt of 8 random bytes
-						std::random_device rd;
-						std::mt19937 mt(rd());
-						std::uniform_real_distribution<float> dist(0, 256);
-						byte = dist(mt);
-					}
+				std::cout << saltHex << std::endl;
 
-					sessionId = ByteToHex(sessionIdBytes, 16);
-				}
+				unsigned char pwordHash[SHA256_DIGEST_LENGTH];
 
-				query = "INSERT INTO sessions (id, user_id) SELECT ?, id FROM users WHERE username = ?;";
-				values = {sessionId, username};
+				auto data = reinterpret_cast<const unsigned char *>((password + saltHex).c_str());
+
+				SHA256(data, password.size(), pwordHash);
+
+				std::string pwordHashHex = ByteToHex<unsigned char *>(pwordHash, 32);
+
+				char *query =
+				  "INSERT INTO users (username, email, pword_hash, salt) VALUES (?, ?, ?, ?);";
+				std::vector<std::string> values = {username, email, pwordHashHex, saltHex};
 
 				if (db->Insert(query, values)) {
-					response["sessionId"] = "sessionId";
-				}
-				else {
+					std::string sessionId = GenSessionID(db);
+
+					query = "INSERT INTO sessions (session_id, user_id) SELECT ?, id FROM users WHERE username = ?;";
+					values = {sessionId, username};
+
+					if (!db->Insert(query, values)) {
+						response["result"] = 0;
+						response["errmsgs"].push_back("Server error: 2");
+						return to_string(response);
+					}
+
+					json stats = {
+					  {"tests", 0},
+					  {"words", 0},
+					  {"letters", 0},
+					  {"worstl", nullptr},
+					  {"bestl", nullptr}
+					};
+
+					json testConfig = {
+					  {"mode", "test"},
+					  {"type", "time"},
+					  {"number", 15}
+					};
+
+					json practiceConfig = json::array();
+
+					for (int i = 0; i < 26; i++) {
+						practiceConfig[i] = {0, 0, 0};
+						/*
+						 * 0: Stores average time taken to type each key
+						 * 1: Stores the number of key presses
+						 * 2: Stores the number of errors
+						 */
+					}
+
+					query = "INSERT INTO user_config (user_id, stats, test_config, practice_config) SELECT id, ? as stats, ? as test_config, ? as practice_config FROM users WHERE username = ?;";
+					values = {
+					  to_string(stats),
+					  to_string(testConfig),
+					  to_string(practiceConfig),
+					  username
+					};
+
+					if (db->Insert(query, values)) {
+						response["sessionId"] = sessionId;
+					}
+					else {
+						response["result"] = 0;
+						response["errmsgs"].push_back("Server error: 2");
+					}
+				} else {
 					response["result"] = 0;
-					response["errmsgs"].push_back("Server error: 2");
+					response["errmsgs"].push_back("Server error: 1");
 				}
-			}
-			else {
-				response["result"] = 0;
-				response["errmsgs"].push_back("Server error: 1");
+				break;
 			}
 		}
-		return to_string(response);
+		case 2: { // login operation
+			std::string username = data["username"].get<std::string>();
+			std::string password = data["password"].get<std::string>();
+
+			if (db->SelectCount("users", "username", username.c_str())) {
+				char *query		 = "SELECT salt FROM users WHERE username = ?;";
+				std::string salt = db->SelectString(query, std::vector<std::string>({username}));
+
+				auto data = reinterpret_cast<const unsigned char *>((password + salt).c_str());
+
+				std::string pwordHashHex = GenPWordHash(data);
+
+				query = "SELECT pword_hash FROM users WHERE username = ?;";
+
+				std::string dbPwordHash = db->SelectString(query, std::vector<std::string>({username}));
+
+				if (pwordHashHex == dbPwordHash) {
+					std::string sessionId = GenSessionID(db);
+
+					query =
+					  "UPDATE sessions SET session_id = ? WHERE user_id = (SELECT user_id FROM users WHERE username = ?);";
+
+					if (db->Update(query, std::vector<std::string>({sessionId, username}))) {
+						response["sessionId"] = sessionId;
+					}
+					else {
+						response["result"] = 0;
+						response["errmsgs"].push_back("Username or password does not exist");
+						return to_string(response);
+					}
+				} else {
+					response["result"] = 0;
+					response["errmsgs"].push_back("Username or password does not exist");
+					return to_string(response);
+				}
+			} else {
+				response["result"] = 0;
+				response["errmsgs"].push_back("Username or password does not exist");
+				return to_string(response);
+			}
+			break;
+		}
+		case 3: { // Config request
+			char *query = "SELECT ? FROM user_config WHERE user_id = (SELECT user_id FROM sessions WHERE session_id = ?);";
+			std::vector<std::string> values = {
+			  response["config"].get<std::string>(),
+			  response["sessionId"].get<std::string>()
+			};
+
+			std::string config = db->SelectString(query, values);
+
+			response["config"] = config;
+		}
+		case 4: { // Practice Word Set Request
+			char *query = "SELECT practice_config FROM user_config WHERE user_id = (SELECT user_id FROM sessions WHERE session_id = ?);";
+			std::vector<std::string> values = {
+			  response["sessionId"].get<std::string>()
+			};
+
+			json practice_config = json::parse(db->SelectString(query, values));
+
+
+		}
+		case 5: { // Practice Word Set Update
+			std::string sessionId = response["sessionId"].get<std::string>();
+
+			char *query = "SELECT practice_config FROM user_config WHERE user_id = (SELECT user_id FROM sessions WHERE session_id = ?);";
+			std::vector<std::string> values = {
+			  sessionId
+			};
+
+			json add_config = json::parse(response["addConfig"].get<std::string>());
+			json practice_config = json::parse(db->SelectString(query, values));
+
+			for (int i = 0; i < 26; i++) {
+				json &practice_entry = practice_config[i];
+				json &add_entry = add_config[i];
+
+				unsigned int practicePresses = practice_entry[1].get<unsigned int>();
+				unsigned int addPresses = add_entry[1].get<unsigned int>();
+
+				unsigned int totalTime = (practice_entry[0].get<unsigned int>() * practicePresses) + (add_entry[0].get<unsigned int>() * addPresses);
+				practice_entry[1] = practicePresses + addPresses;
+
+				practice_entry[0] = totalTime / practice_entry[1].get<unsigned int>();
+
+				practice_entry[2] = practice_entry[2].get<unsigned int>() + add_entry[2].get<unsigned int>();
+			}
+
+			query = "UPDATE user_config SET practice_config = ? WHERE user_id = (SELECT user_id FROM sessions WHERE session_id = ?);";
+			values = {
+				practice_config.get<std::string>(),
+			  	sessionId
+			};
+
+			if (!db->Update(query, values)) {
+				response["result"] = 0;
+				response["errmsgs"].push_back("Server error, could not update practice config");
+			}
+		}
 	}
+	return to_string(response);
+}
+
+std::string Thread::GenPWordHash(const unsigned char *data) {
+	unsigned char pwordHash[SHA256_DIGEST_LENGTH];
+
+	SHA256(data, strlen((char*)data), pwordHash);
+
+	std::string pwordHashHex = ByteToHex<unsigned char *>(pwordHash, 32);
+
+	return pwordHashHex;
+}
+
+std::string Thread::GenSessionID(Database *db) {
+	char sessionIdBytes[16];
+
+	for (char &byte : sessionIdBytes) { // Generate salt of 8 random bytes
+		std::random_device rd;
+		std::mt19937 mt(rd());
+		std::uniform_real_distribution<float> dist(0, 256);
+		byte = dist(mt);
+	}
+
+	std::string sessionId = ByteToHex(sessionIdBytes, 16);
+	/*
+	 * Checks if there is already a sessionId with the same value assigned.
+	 * Extremely improbable as there is ~3.4e+38 possible values for the sessionId,
+	 * but will cause problems if duplicates occur.
+	 */
+	while (db->SelectCount("sessions", "session_id", sessionId.c_str())) {
+		for (char &byte : sessionIdBytes) { // Generate salt of 8 random bytes
+			std::random_device rd;
+			std::mt19937 mt(rd());
+			std::uniform_real_distribution<float> dist(0, 256);
+			byte = dist(mt);
+		}
+		sessionId = ByteToHex(sessionIdBytes, 16);
+	}
+	return sessionId;
 }
 
 bool Thread::Terminate() {
@@ -510,6 +677,5 @@ bool Thread::Terminate() {
         std::cout << "TerminateThread() failed on thread " << m_threadId << " with: " << GetLastError() << std::endl;
         return false;
     }
-
     return true;
 }
