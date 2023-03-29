@@ -44,6 +44,8 @@ public:
 	static std::string GenPWordHash(const unsigned char* data);
 	static std::string GenSessionID(Database *db);
 
+	static std::vector<std::string> GenPracticeWords(const nlohmann::json &practice_config, int number);
+
     bool Terminate(); // Terminates current thread
 private:
     HANDLE m_handle;

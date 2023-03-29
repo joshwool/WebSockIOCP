@@ -581,17 +581,7 @@ std::string Thread::GenerateResponse(char payload[], Database *db) {
 
 			response["config"] = config;
 		}
-		case 4: { // Practice Word Set Request
-			char *query = "SELECT practice_config FROM user_config WHERE user_id = (SELECT user_id FROM sessions WHERE session_id = ?);";
-			std::vector<std::string> values = {
-			  response["sessionId"].get<std::string>()
-			};
-
-			json practice_config = json::parse(db->SelectString(query, values));
-
-
-		}
-		case 5: { // Practice Word Set Update
+		case 4: { // Practice Word Set Update
 			std::string sessionId = response["sessionId"].get<std::string>();
 
 			char *query = "SELECT practice_config FROM user_config WHERE user_id = (SELECT user_id FROM sessions WHERE session_id = ?);";
@@ -619,14 +609,28 @@ std::string Thread::GenerateResponse(char payload[], Database *db) {
 
 			query = "UPDATE user_config SET practice_config = ? WHERE user_id = (SELECT user_id FROM sessions WHERE session_id = ?);";
 			values = {
-				practice_config.get<std::string>(),
-			  	sessionId
+			  practice_config.get<std::string>(),
+			  sessionId
 			};
 
 			if (!db->Update(query, values)) {
 				response["result"] = 0;
 				response["errmsgs"].push_back("Server error, could not update practice config");
 			}
+		}
+		case 5: { // Practice Word Set Request
+			char *query =
+			  "SELECT practice_config FROM user_config WHERE user_id = (SELECT user_id FROM sessions WHERE session_id = ?);";
+			std::vector<std::string> values = {response["sessionId"].get<std::string>()};
+
+			json practice_config = json::parse(db->SelectString(query, values));
+
+			std::vector<std::string> words = GenPracticeWords(practice_config, data["number"].get<int>());
+
+			response["words"] = words;
+		}
+		case 6: {
+
 		}
 	}
 	return to_string(response);
@@ -669,6 +673,116 @@ std::string Thread::GenSessionID(Database *db) {
 	}
 	return sessionId;
 }
+
+struct ComparePair {
+	bool operator()(const std::pair<double, std::string> &a, const std::pair<double, std::string> &b) {
+		return a.first > b.first;
+	}
+};
+
+std::vector<std::string> Thread::GenPracticeWords(const json &practice_config, int number) {
+	double scores[26] = {0}; // array to store the scores for each key
+
+	double totalTime = 0, totalErrors = 0;
+
+	double totalKeys = 26;
+
+	for (const json &entry : practice_config) {
+		unsigned int time = entry[0].get<unsigned int>();
+
+		if (entry[1].get<unsigned int>() == 0) {
+			totalKeys--; // If keys were never pressed then this stops them from bringing down the average
+		}
+
+		totalTime += time;
+	}
+
+	double avgTime = totalTime / totalKeys;
+
+	double sosNegTimeD = 0; // sum of squares of negative time differences
+	unsigned int sosErrors = 0; // sum of squares of errors
+
+	for (const json &entry : practice_config) {
+		unsigned int time = entry[0].get<unsigned int>();
+		unsigned int errors = entry[2].get<unsigned int>();
+
+		double timeD = time - avgTime;
+
+		if (timeD < 0) {
+			sosNegTimeD += timeD * timeD;
+		}
+		sosErrors += errors * errors;
+	}
+
+	for (int i = 0; i < 26; i++) {
+		const json &entry = practice_config[i];
+
+		unsigned int time = entry[0].get<unsigned int>();
+		unsigned int errors = entry[2].get<unsigned int>();
+
+		double timeD = time - avgTime;
+
+		double sqrTimeD = 0;
+
+		if (timeD < 0) {
+			sqrTimeD = timeD * timeD;
+		}
+		double sqrErrors = errors * errors;
+
+		scores[i] = ((sqrTimeD / sosNegTimeD) * 0.25) + (sqrErrors / sosErrors);
+	}
+
+	std::vector<std::pair<char, double>> posScores; // Vector of integer representation of chars with positive scores
+
+	for (int i = 0; i < 26; i++) {
+		if (scores[i] > 0) {
+			posScores.emplace_back(static_cast<char>(97+i), scores[i]);
+		}
+	}
+
+	std::ifstream f("words_5k.json");
+	json words = json::parse(f);
+	f.close();
+
+	json wordsArray = words["words"];
+
+	std::vector<std::pair<double, std::string>> wordScores;
+
+	for (const auto &word : wordsArray) {
+		wordScores.emplace_back(0.0, word.get<std::string>());
+		for (const char &c : word.get<std::string>()) {
+			for (const std::pair<char, double> &pair : posScores) {
+				if (c & pair.first) {
+					wordScores[-1].first += pair.second;
+					break; // No other characters can return a value > 0 for this character so just skip them
+				}
+			}
+		}
+	}
+
+	std::priority_queue<std::pair<double, std::string>, std::vector<std::pair<double, std::string>>, ComparePair> minHeap;
+
+	for (const std::pair<double, std::string> &pair : wordScores) {
+		if (minHeap.size() < number && pair.first != 0) {
+			minHeap.push(pair);
+		}
+		else if (pair.first > minHeap.top().first) {
+			minHeap.pop();
+			minHeap.push(pair);
+		}
+	}
+
+	std::vector<std::string> practiceWords;
+
+	while (!minHeap.empty()) {
+		practiceWords.push_back(minHeap.top().second);
+		minHeap.pop();
+	}
+
+	return practiceWords;
+}
+
+
 
 bool Thread::Terminate() {
     if (TerminateThread(

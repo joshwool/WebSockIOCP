@@ -18,6 +18,7 @@
 #include <random>
 #include <nlohmann/json.hpp>
 #include <fstream>
+#include <queue>
 
 #define INIT_BUF_MEM 1024 // Initial Buffer memory
 
