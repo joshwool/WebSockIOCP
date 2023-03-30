@@ -28,7 +28,7 @@ bool Socket::Create(const char* port, const char *address) { // Resolves
             &res);
 
     if (result != 0) {
-        std::cout << "getaddrinfo() failed: " << WSAGetLastError() << std::endl;
+        std::cerr << "getaddrinfo() failed: " << WSAGetLastError() << std::endl;
         WSACleanup();
         return false;
     }
@@ -42,7 +42,7 @@ bool Socket::Create(const char* port, const char *address) { // Resolves
             WSA_FLAG_OVERLAPPED);
 
     if (m_handle == INVALID_SOCKET) {
-        std::cout << "socket() failed: " << WSAGetLastError() << std::endl;
+        std::cerr << "socket() failed: " << WSAGetLastError() << std::endl;
         WSACleanup();
     }
     m_address = *res->ai_addr;
@@ -58,7 +58,7 @@ bool Socket::Bind() { // Binds socket to port and address
             m_addrlen);
 
     if (result != 0) {
-        std::cout << "bind() failed: " << WSAGetLastError() << std::endl;
+        std::cerr << "bind() failed: " << WSAGetLastError() << std::endl;
         closesocket(m_handle);
         return false;
     }
@@ -68,7 +68,7 @@ bool Socket::Bind() { // Binds socket to port and address
 bool Socket::Listen() { // Starts listening for connections on socket
     if (Bind()) {
         if (listen(m_handle, SOMAXCONN) != 0) {
-            std::cout << "listen() failed: " << WSAGetLastError() << std::endl;
+            std::cerr << "listen() failed: " << WSAGetLastError() << std::endl;
             closesocket(m_handle);
             return false;
         }
@@ -94,7 +94,7 @@ SOCKET Socket::Accept() { // Accepts connections on socket and returns connectio
 			return connection; // Returns socket handle of new connection
 		}
 		else {
-			std::cout << WSAGetLastError() << std::endl;
+			std::cerr << "WSAAccept() failed: " << WSAGetLastError() << std::endl;
 		}
 	}
 }

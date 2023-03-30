@@ -8,7 +8,7 @@ IoCPort::IoCPort(int maxConcThreads) {
             maxConcThreads);
 
     if (m_handle == nullptr) {
-        std::cout << "CreateIoCompletionPort() failed: " << GetLastError() << std::endl;
+        std::cerr << "CreateIoCompletionPort() failed: " << GetLastError() << std::endl;
     }
 }
 
@@ -29,7 +29,7 @@ bool IoCPort::AssignSocket(SOCKET socket, ULONG_PTR socketContext) {
             0);
 
     if (m_handle == nullptr) {
-        std::cout << "CreateIoCompletionPort() failed: " << GetLastError() << std::endl;
+        std::cerr << "CreateIoCompletionPort() failed: " << GetLastError() << std::endl;
         return false;
     }
     return true;
@@ -41,7 +41,7 @@ void IoCPort::PostCompletionPacket(ULONG_PTR completionKey) {
             sizeof(completionKey),
             completionKey,
             nullptr) == 0) {
-        std::cout << "PostQueuedCompletionStatus() failed: " << GetLastError() << std::endl;
+        std::cerr << "PostQueuedCompletionStatus() failed: " << GetLastError() << std::endl;
     }
 }
 

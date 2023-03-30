@@ -5,7 +5,7 @@ Bufferpool::Bufferpool(int maxBufNum) {
 		m_buffers.push_back(new Buffer(INIT_BUF_MEM, this)); // Creates a new buffer
 
 		if (!m_buffers.at(i)) { // Checks if buffer created correctly
-			std::cout << "Buffer " << i << " not created" << std::endl;
+			std::cerr << "Buffer " << i << " not created" << std::endl;
 		}
 	}
 }

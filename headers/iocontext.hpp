@@ -32,6 +32,7 @@ public:
     SOCKET m_connection; // Socket handle, for connection
 	IoEvent m_ioEvent; // Enumeration with all possible IO events
 	Database *m_db; // SQL Database
+	int final;
 };
 
 #endif //WEBSOCKIOCP_IOCONTEXT_HPP

@@ -41,7 +41,7 @@ void Server::Run() {
 			  nullptr);
 
 			if (result != 0 && WSAGetLastError() != ERROR_IO_PENDING) { // IO Pending errors ignored as operation will complete later
-				std::cout << "WSARecv() failed: " << WSAGetLastError() << std::endl;
+				std::cerr << "WSARecv() failed: " << WSAGetLastError() << std::endl;
 			}
         }
     }

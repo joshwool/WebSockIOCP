@@ -36,8 +36,9 @@ Database::Database(const char *dir) {
 	  "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,"
 	  "user_id INTEGER NOT NULL,"
 	  "mode TEXT NOT NULL,"
+	  "number TEXT NOT NULL,"
 	  "wpm REAL NOT NULL,"
-	  "seconds TEXT NOT NULL,"
+	  "accuracy REAL NOT NULL,"
 	  "FOREIGN KEY (user_id) REFERENCES users(id) );"
 	  );
 
@@ -57,7 +58,7 @@ Database::~Database() {
 	sqlite3_close(m_db);
 }
 
-void Database::Create(char *query) {
+void Database::Create(const char *query) {
 	sqlite3_stmt *stmt;
 	int result;
 
@@ -69,20 +70,20 @@ void Database::Create(char *query) {
 	  nullptr);
 
 	if (result != SQLITE_OK) {
-		std::cout << "SQLite operation failed: " << sqlite3_errmsg(m_db) << std::endl;
+		std::cerr << "SQLite operation failed: " << sqlite3_errmsg(m_db) << std::endl;
 		return;
 	}
 
 	result = sqlite3_step(stmt);
 
 	if (result != SQLITE_DONE) {
-		std::cout << "SQLite operation failed: " << sqlite3_errmsg(m_db) << std::endl;
+		std::cerr << "SQLite operation failed: " << sqlite3_errmsg(m_db) << std::endl;
 	}
 
 	sqlite3_finalize(stmt);
 }
 
-bool Database::Insert(char *query, std::vector<std::string> values) {
+bool Database::Insert(const char *query, std::vector<std::string> values) {
 	sqlite3_stmt *stmt;
 	int result;
 
@@ -94,7 +95,7 @@ bool Database::Insert(char *query, std::vector<std::string> values) {
 	  nullptr);
 
 	if (result != SQLITE_OK) {
-		std::cout << "SQLite operation failed: " << sqlite3_errmsg(m_db) << std::endl;
+		std::cerr << "SQLite operation failed: " << sqlite3_errmsg(m_db) << std::endl;
 		return false;
 	}
 
@@ -110,7 +111,7 @@ bool Database::Insert(char *query, std::vector<std::string> values) {
 	result = sqlite3_step(stmt);
 
 	if (result != SQLITE_DONE) {
-		std::cout << "SQLite operation failed: " << sqlite3_errmsg(m_db) << std::endl;
+		std::cerr << "SQLite operation failed: " << sqlite3_errmsg(m_db) << std::endl;
 		return false;
 	}
 
@@ -119,7 +120,7 @@ bool Database::Insert(char *query, std::vector<std::string> values) {
 	return true;
 }
 
-std::string Database::SelectString(char *query, std::vector<std::string> values) {
+std::string Database::SelectString(const char *query, std::vector<std::string> values) {
 	sqlite3_stmt *stmt;
 	int result;
 
@@ -131,7 +132,7 @@ std::string Database::SelectString(char *query, std::vector<std::string> values)
 	  nullptr);
 
 	if (result != SQLITE_OK) {
-		std::cout << "SQLite operation failed: " << sqlite3_errmsg(m_db) << std::endl;
+		std::cerr << "SQLite operation failed: " << sqlite3_errmsg(m_db) << std::endl;
 	}
 
 	for (int i = 0; i < values.size(); i++) {
@@ -151,7 +152,7 @@ std::string Database::SelectString(char *query, std::vector<std::string> values)
 		data = std::string(reinterpret_cast<const char*>(data_cstr));
 	}
 	else {
-		std::cout << "SQLite operation failed: " << sqlite3_errmsg(m_db) << std::endl;
+		std::cerr << "SQLite operation failed: " << sqlite3_errmsg(m_db) << std::endl;
 	}
 
 	sqlite3_finalize(stmt);
@@ -159,7 +160,7 @@ std::string Database::SelectString(char *query, std::vector<std::string> values)
 	return data;
 }
 
-std::vector<std::string> Database::SelectMultiple(char *query, std::vector<std::string> values, int columns) {
+std::vector<std::string> Database::SelectMultiple(const char *query, std::vector<std::string> values, int columns) {
 	sqlite3_stmt *stmt;
 	int result;
 
@@ -171,7 +172,7 @@ std::vector<std::string> Database::SelectMultiple(char *query, std::vector<std::
 	  nullptr);
 
 	if (result != SQLITE_OK) {
-		std::cout << "SQLite operation failed: " << sqlite3_errmsg(m_db) << std::endl;
+		std::cerr << "SQLite operation failed: " << sqlite3_errmsg(m_db) << std::endl;
 	}
 
 	for (int i = 0; i < values.size(); i++) {
@@ -192,7 +193,7 @@ std::vector<std::string> Database::SelectMultiple(char *query, std::vector<std::
 		}
 	}
 	if (result != SQLITE_DONE) {
-		std::cout << "SQLite operation failed: " << sqlite3_errmsg(m_db) << std::endl;
+		std::cerr << "SQLite operation failed: " << sqlite3_errmsg(m_db) << std::endl;
 	}
 
 	sqlite3_finalize(stmt);
@@ -214,7 +215,7 @@ int Database::SelectCount(const std::string& table, const std::string& columnNam
 	  nullptr);
 
 	if (result != SQLITE_OK) {
-		std::cout << "SQLite operation failed: " << sqlite3_errmsg(m_db) << std::endl;
+		std::cerr << "SQLite operation failed: " << sqlite3_errmsg(m_db) << std::endl;
 		return -1;
 	}
 
@@ -232,7 +233,7 @@ int Database::SelectCount(const std::string& table, const std::string& columnNam
 		count = sqlite3_column_int(stmt, 0);
 	}
 	else {
-		std::cout << "SQLite operation failed: " << sqlite3_errmsg(m_db) << std::endl;
+		std::cerr << "SQLite operation failed: " << sqlite3_errmsg(m_db) << std::endl;
 	}
 
 	sqlite3_finalize(stmt);
@@ -240,7 +241,7 @@ int Database::SelectCount(const std::string& table, const std::string& columnNam
 	return count;
 }
 
-bool Database::Update(char *query, std::vector<std::string> values) {
+bool Database::Update(const char *query, std::vector<std::string> values) {
 	sqlite3_stmt *stmt;
 	int result;
 
@@ -252,7 +253,7 @@ bool Database::Update(char *query, std::vector<std::string> values) {
 	  nullptr);
 
 	if (result != SQLITE_OK) {
-		std::cout << "SQLite operation failed: " << sqlite3_errmsg(m_db) << std::endl;
+		std::cerr << "SQLite operation failed: " << sqlite3_errmsg(m_db) << std::endl;
 		return false;
 	}
 
@@ -267,7 +268,7 @@ bool Database::Update(char *query, std::vector<std::string> values) {
 
 	result = sqlite3_step(stmt);
 	if (result != SQLITE_DONE) {
-		std::cout << "SQLite operation failed: " << sqlite3_errmsg(m_db) << std::endl;
+		std::cerr << "SQLite operation failed: " << sqlite3_errmsg(m_db) << std::endl;
 		return false;
 	}
 

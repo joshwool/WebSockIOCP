@@ -15,7 +15,7 @@ Thread::Thread(HANDLE iocPort) : m_handle(INVALID_HANDLE_VALUE), m_threadId(0) {
 	  &m_threadId);
 
     if (m_handle == INVALID_HANDLE_VALUE) {
-        std::cout << "CreateThread() failed: " << GetLastError() << std::endl;
+        std::cerr << "CreateThread() failed: " << GetLastError() << std::endl;
     }
 }
 
@@ -77,7 +77,7 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
 					}
 
 					if (!keyFound) {
-						std::cout << "WebSocket-Key could not be found" << std::endl;
+						std::cerr << "WebSocket-Key could not be found" << std::endl;
 						pIoContext->Release();
 						break;
 					}
@@ -105,7 +105,7 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
 					  nullptr);
 
 					if (result != 0 && WSAGetLastError() != 997) {
-						std::cout << "WSASend() failed: " << WSAGetLastError() << std::endl;
+						std::cerr << "WSASend() failed: " << WSAGetLastError() << std::endl;
 					}
 
 					pIoContext->Release();
@@ -175,16 +175,19 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
 							std::string response = GenerateResponse(payload, pIoContext->m_db);
 
 							if (response.length() > 65535) {
+								paylenSize = 6;
 								sendFormat.payloadLen = 127;
 								int64_t payloadLen = _byteswap_uint64(response.length());
 								memcpy(&wsabuf->buf[2], &payloadLen, 8);
 							} else if (response.length() > 125) {
+								paylenSize = 2;
 								sendFormat.payloadLen = 126;
 								uint16_t temp = response.length();
 								temp = htons(temp);
 								memcpy(&wsabuf->buf[2], &temp, 2);
 							}
 							else {
+								paylenSize = 0;
 								sendFormat.payloadLen = response.length();
 							}
 
@@ -209,8 +212,7 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
 								wsabuf->len = 2 + paylenSize + response.length();
 							}
 
-
-
+							pIoContext->m_nTotal = wsabuf->len;
 							pIoContext->m_ioEvent = write;
 
 							int result = WSASend(
@@ -223,7 +225,7 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
 							  nullptr);
 
 							if (result != 0 && WSAGetLastError() != 997) {
-								std::cout << "WSASend() failed: " << WSAGetLastError() << std::endl;
+								std::cerr << "WSASend() failed: " << WSAGetLastError() << std::endl;
 							}
 
 							break;
@@ -273,12 +275,8 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
 								wsabuf->len = 2 + paylenSize + payloadLen;
 							}
 
-							if (sendFormat.opcode == 8) {
-								pIoContext->m_ioEvent = close;
-							}
-							else {
-								pIoContext->m_ioEvent = write;
-							}
+
+							pIoContext->m_ioEvent = write;
 
 							int result = WSASend(pIoContext->m_connection,
 												 wsabuf,
@@ -289,7 +287,11 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
 												 nullptr);
 
 							if (result != 0 && WSAGetLastError() != 997) {
-								std::cout << "WSASend() failed: " << WSAGetLastError() << std::endl;
+								std::cerr << "WSASend() failed: " << WSAGetLastError() << std::endl;
+							}
+
+							if (sendFormat.opcode == 8) {
+								pIoContext->final = 1;
 							}
 
 							break;
@@ -323,7 +325,7 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
 						  nullptr);
 
 						if (result != 0 && WSAGetLastError() != 997) {
-							std::cout << "WSASend() failed: " << WSAGetLastError() << std::endl;
+							std::cerr << "WSASend() failed: " << WSAGetLastError() << std::endl;
 						}
 					} else {
 						pIoContext->m_ioEvent = read;
@@ -338,21 +340,20 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
 						  nullptr);
 
 						if (result != 0 && WSAGetLastError() != 997) {
-							std::cout << "WSARecv() failed: " << WSAGetLastError() << std::endl;
+							std::cerr << "WSARecv() failed: " << WSAGetLastError() << std::endl;
 						}
+					}
+
+					if (pIoContext->final) {
+						pIoContext->Release();
 					}
 
 					pIoContext->Release();
 					break;
 				}
-				case close: {
-					pIoContext->Release();
-
-					break;
-				}
 			}
         } else {
-			std::cout << GetLastError() << std::endl;
+			std::cerr << "GetQueuedCompletionStatus() failed: " << GetLastError() << std::endl;
 		}
     }
 	return 0;
@@ -406,6 +407,7 @@ uint8_t Thread::ReadBits(unsigned char c, uint8_t msb, uint8_t n) {
 }
 
 std::string Thread::GenerateResponse(char payload[], Database *db) {
+
 	json data;
 	json response;
 
@@ -528,7 +530,7 @@ std::string Thread::GenerateResponse(char payload[], Database *db) {
 				break;
 			}
 		}
-		case 2: { // login operation
+		case 2: { // Login operation
 			std::string username = data["username"].get<std::string>();
 			std::string password = data["password"].get<std::string>();
 
@@ -570,26 +572,39 @@ std::string Thread::GenerateResponse(char payload[], Database *db) {
 			}
 			break;
 		}
-		case 3: { // Config request
-			char *query = "SELECT ? FROM user_config WHERE user_id = (SELECT user_id FROM sessions WHERE session_id = ?);";
+		case 3: { // General Config request
+			std::string query = "SELECT " + data["config"].get<std::string>() + " FROM user_config WHERE user_id = (SELECT user_id FROM sessions WHERE session_id = ?);";
 			std::vector<std::string> values = {
-			  response["config"].get<std::string>(),
-			  response["sessionId"].get<std::string>()
+			  data["sessionId"].get<std::string>()
 			};
 
-			std::string config = db->SelectString(query, values);
+			std::string config = db->SelectString(query.c_str(), values);
 
-			response["config"] = config;
+			response["config"] = json::parse(config);
+			break;
 		}
-		case 4: { // Practice Word Set Update
-			std::string sessionId = response["sessionId"].get<std::string>();
+		case 4: { // General Config update
+			std::string query = "UPDATE user_config SET " + data["config"].get<std::string>() + " = ? WHERE user_id = (SELECT user_id FROM sessions WHERE session_id = ?);";
+			std::vector<std::string> values = {
+			  to_string(data["values"]),
+			  data["sessionId"].get<std::string>()
+			};
+
+			if (!db->Update(query.c_str(), values)) {
+				response["result"] = 0;
+				response["errmsgs"].push_back("Server error, could not update config");
+			}
+			break;
+		}
+		case 5: { // Practice Word Set Update
+			std::string sessionId = data["sessionId"].get<std::string>();
 
 			char *query = "SELECT practice_config FROM user_config WHERE user_id = (SELECT user_id FROM sessions WHERE session_id = ?);";
 			std::vector<std::string> values = {
 			  sessionId
 			};
 
-			json add_config = json::parse(response["addConfig"].get<std::string>());
+			json add_config = data["addConfig"];
 			json practice_config = json::parse(db->SelectString(query, values));
 
 			for (int i = 0; i < 26; i++) {
@@ -602,14 +617,16 @@ std::string Thread::GenerateResponse(char payload[], Database *db) {
 				unsigned int totalTime = (practice_entry[0].get<unsigned int>() * practicePresses) + (add_entry[0].get<unsigned int>() * addPresses);
 				practice_entry[1] = practicePresses + addPresses;
 
-				practice_entry[0] = totalTime / practice_entry[1].get<unsigned int>();
+				if (practice_entry[1].get<unsigned int>() != 0) {
+					practice_entry[0] = totalTime / practice_entry[1].get<unsigned int>();
+				}
 
 				practice_entry[2] = practice_entry[2].get<unsigned int>() + add_entry[2].get<unsigned int>();
 			}
 
 			query = "UPDATE user_config SET practice_config = ? WHERE user_id = (SELECT user_id FROM sessions WHERE session_id = ?);";
 			values = {
-			  practice_config.get<std::string>(),
+			  to_string(practice_config),
 			  sessionId
 			};
 
@@ -617,20 +634,19 @@ std::string Thread::GenerateResponse(char payload[], Database *db) {
 				response["result"] = 0;
 				response["errmsgs"].push_back("Server error, could not update practice config");
 			}
+			break;
 		}
-		case 5: { // Practice Word Set Request
+		case 6: { // Practice Word Set Request
 			char *query =
 			  "SELECT practice_config FROM user_config WHERE user_id = (SELECT user_id FROM sessions WHERE session_id = ?);";
-			std::vector<std::string> values = {response["sessionId"].get<std::string>()};
+			std::vector<std::string> values = {data["sessionId"].get<std::string>()};
 
 			json practice_config = json::parse(db->SelectString(query, values));
 
 			std::vector<std::string> words = GenPracticeWords(practice_config, data["number"].get<int>());
 
 			response["words"] = words;
-		}
-		case 6: {
-
+			break;
 		}
 	}
 	return to_string(response);
@@ -708,7 +724,7 @@ std::vector<std::string> Thread::GenPracticeWords(const json &practice_config, i
 
 		double timeD = time - avgTime;
 
-		if (timeD < 0) {
+		if (timeD > 0) {
 			sosNegTimeD += timeD * timeD;
 		}
 		sosErrors += errors * errors;
@@ -724,7 +740,7 @@ std::vector<std::string> Thread::GenPracticeWords(const json &practice_config, i
 
 		double sqrTimeD = 0;
 
-		if (timeD < 0) {
+		if (timeD > 0) {
 			sqrTimeD = timeD * timeD;
 		}
 		double sqrErrors = errors * errors;
@@ -732,16 +748,18 @@ std::vector<std::string> Thread::GenPracticeWords(const json &practice_config, i
 		scores[i] = ((sqrTimeD / sosNegTimeD) * 0.25) + (sqrErrors / sosErrors);
 	}
 
-	std::vector<std::pair<char, double>> posScores; // Vector of integer representation of chars with positive scores
+	std::vector<std::pair<double, char>> posScores; // Vector of integer representation of chars with positive scores
 
 	for (int i = 0; i < 26; i++) {
 		if (scores[i] > 0) {
-			posScores.emplace_back(static_cast<char>(97+i), scores[i]);
+			posScores.emplace_back(scores[i], static_cast<char>(97+i));
 		}
 	}
 
-	std::ifstream f("words_5k.json");
-	json words = json::parse(f);
+	json words;
+
+	std::ifstream f("C:\\Users\\joshi\\CLionProjects\\WebSockIOCP\\words_5k.json");
+	words = json::parse(f);
 	f.close();
 
 	json wordsArray = words["words"];
@@ -751,14 +769,16 @@ std::vector<std::string> Thread::GenPracticeWords(const json &practice_config, i
 	for (const auto &word : wordsArray) {
 		wordScores.emplace_back(0.0, word.get<std::string>());
 		for (const char &c : word.get<std::string>()) {
-			for (const std::pair<char, double> &pair : posScores) {
-				if (c & pair.first) {
-					wordScores[-1].first += pair.second;
+			for (const std::pair<double, char> &pair : posScores) {
+				if ((c & pair.second) == c) {
+					wordScores[wordScores.size() - 1].first += pair.first;
 					break; // No other characters can return a value > 0 for this character so just skip them
 				}
 			}
 		}
+		wordScores[wordScores.size() - 1].first /= double(word.get<std::string>().length());
 	}
+
 
 	std::priority_queue<std::pair<double, std::string>, std::vector<std::pair<double, std::string>>, ComparePair> minHeap;
 
@@ -788,7 +808,7 @@ bool Thread::Terminate() {
     if (TerminateThread(
             m_handle,
             0) == 0) {
-        std::cout << "TerminateThread() failed on thread " << m_threadId << " with: " << GetLastError() << std::endl;
+        std::cerr << "TerminateThread() failed on thread " << m_threadId << " with: " << GetLastError() << std::endl;
         return false;
     }
     return true;
