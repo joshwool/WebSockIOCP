@@ -31,38 +31,39 @@ Database::Database(const char *dir) {
 	  "FOREIGN KEY (user_id) REFERENCES users(id) );"
 	  );
 
-	Create(
+	Create( // Creates tests table, if already exists this won't do anything
 	  "CREATE TABLE IF NOT EXISTS tests ("
 	  "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,"
 	  "user_id INTEGER NOT NULL,"
-	  "mode TEXT NOT NULL,"
+	  "type TEXT NOT NULL,"
 	  "number TEXT NOT NULL,"
-	  "wpm REAL NOT NULL,"
-	  "accuracy REAL NOT NULL,"
+	  "test_data TEXT NOT NULL,"
+	  "date_completed TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,"
 	  "FOREIGN KEY (user_id) REFERENCES users(id) );"
 	  );
 
-	Create(
+	Create( // Creates tests table, if already exists this won't do anything
 	  "CREATE TABLE IF NOT EXISTS leaderboard ("
 	  "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,"
 	  "user_id INTEGER NOT NULL,"
 	  "username TEXT NOT NULL,"
-	  "mode TEXT NOT NULL,"
-	  "wpm REAL NOT NULL,"
-	  "accuracy REAL NOT NULL,"
+	  "type TEXT NOT NULL,"
+	  "number TEXT NOT NULL,"
+	  "test_data TEXT NOT NULL,"
+	  "date_completed TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,"
 	  "FOREIGN KEY (user_id) REFERENCES users(id) );"
 	  );
 }
 
 Database::~Database() {
-	sqlite3_close(m_db);
+	sqlite3_close(m_db); // Closes database connection on deletion of object
 }
 
 void Database::Create(const char *query) {
-	sqlite3_stmt *stmt;
+	sqlite3_stmt *stmt; // Creates an SQL statement
 	int result;
 
-	result = sqlite3_prepare_v2(
+	result = sqlite3_prepare_v2( // Prepares statement with inputted query
 	  m_db,
 	  query,
 	  -1, // Reads up to null terminator
@@ -74,9 +75,9 @@ void Database::Create(const char *query) {
 		return;
 	}
 
-	result = sqlite3_step(stmt);
+	result = sqlite3_step(stmt); // Steps through statement, i.e executes statement
 
-	if (result != SQLITE_DONE) {
+	if (result != SQLITE_DONE) { // Checks if execution worked
 		std::cerr << "SQLite operation failed: " << sqlite3_errmsg(m_db) << std::endl;
 	}
 
@@ -100,7 +101,7 @@ bool Database::Insert(const char *query, std::vector<std::string> values) {
 	}
 
 	for (int i = 0; i < values.size(); i++) {
-		sqlite3_bind_text(
+		sqlite3_bind_text( // Binds user inputted values to statement, using this method ensures that SQL injections cannot occur
 		  stmt,
 		  i+1,
 		  values[i].c_str(),
@@ -147,9 +148,12 @@ std::string Database::SelectString(const char *query, std::vector<std::string> v
 	result = sqlite3_step(stmt);
 	std::string data;
 
-	if (result == SQLITE_ROW) {
+	if (result == SQLITE_ROW) { // For the row found
 		const unsigned char *data_cstr = sqlite3_column_text(stmt, 0);
-		data = std::string(reinterpret_cast<const char*>(data_cstr));
+		data = std::string(reinterpret_cast<const char*>(data_cstr)); // Copy data from row to data variable
+	}
+	else if (result == SQLITE_DONE){ // Could not find any row
+		data = "null"; // Set data to null and handle later
 	}
 	else {
 		std::cerr << "SQLite operation failed: " << sqlite3_errmsg(m_db) << std::endl;
@@ -187,7 +191,7 @@ std::vector<std::string> Database::SelectMultiple(const char *query, std::vector
 	std::vector<std::string> results;
 
 	while ((result = sqlite3_step(stmt)) == SQLITE_ROW) {
-		for (int i = 0; i < columns; i++) {
+		for (int i = 0; i < columns; i++) { // For each column in row push value to results vector
 			std::string data(reinterpret_cast<const char*>(sqlite3_column_text(stmt, i)));
 			results.push_back(data);
 		}
@@ -201,7 +205,7 @@ std::vector<std::string> Database::SelectMultiple(const char *query, std::vector
 	return results;
 }
 
-int Database::SelectCount(const std::string& table, const std::string& columnName, const char *value) {
+int Database::SelectCount(const std::string& table, const std::string& columnName, const char *value) { // Counts the number of rows where condition is valid
 	sqlite3_stmt *stmt;
 	int result;
 

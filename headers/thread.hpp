@@ -30,21 +30,22 @@ public:
 
 	static std::string GenerateResponse(char payload[], Database *db); // Generates response from payload
 
-	template<typename T> static std::string ByteToHex(T bytes, uint8_t length) {
+	template<typename T> static std::string ByteToHex(T bytes, uint8_t length) { // Converts a byte array of some char type to a hexadecimal string
 		std::string hex(length * 2, ' ');
 
-		for (int i = 0; i < length; i++) {
-			hex[i * 2] = hexmap[(bytes[i] & 0xF0) >> 4];
+		for (int i = 0; i < length; i++) { // Maps each byte to a hexadecimal value
+			hex[i * 2] = hexmap[(bytes[i] & 0xF0) >> 4]; // Right shifts byte by 4 after bitwise & so value will be in range of hexmap
 			hex[i * 2 + 1] = hexmap[bytes[i] & 0x0F];
 		}
 
 		return hex;
 	}
 
-	static std::string GenPWordHash(const unsigned char* data);
-	static std::string GenSessionID(Database *db);
+	static std::string GenPWordHash(const unsigned char* data); // Generates the password hash
+	static std::string GenSessionID(Database *db); // Generates session Id and inserts/updates it in database
 
-	static std::vector<std::string> GenPracticeWords(const nlohmann::json &practice_config, int number);
+	static std::array<double, 26> GenScores(const nlohmann::json &keyData); // Generates scores for each key
+	static std::vector<std::string> GenPracticeWords(const nlohmann::json &practice_config, int number); // Generates a practice word set of length number
 
     bool Terminate(); // Terminates current thread
 private:

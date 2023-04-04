@@ -4,23 +4,23 @@ Buffer::Buffer(size_t bufSize, Bufferpool *parentPool)
 		:
 		m_totalSize(bufSize),
 		m_parentPool(parentPool) {
-	m_buffer = (char*)malloc(m_totalSize);
+	m_buffer = (char*)malloc(m_totalSize); // Allocates memory to the buffer
 
-	SetupWSABUF();
+	SetupWSABUF(); // Setups the WSABUF structure with the buffer created above
 }
 
-Buffer::~Buffer() {
+Buffer::~Buffer() { // Deletes buffer when destructor is called
 	delete m_buffer;
 }
 
 void Buffer::SetupWSABUF() {
-    m_wsabuf.buf = m_buffer;
-    m_wsabuf.len = m_totalSize;
+    m_wsabuf.buf = m_buffer; // Sets WSABUF buffer to member buffer
+    m_wsabuf.len = m_totalSize; // Sets WSABUF length to size of member BUFFER
 }
 
 void Buffer::AddData(const char* pData, size_t dataLength) {
-	memcpy(m_wsabuf.buf, pData, dataLength);
-	m_wsabuf.len = dataLength;
+	memcpy(m_wsabuf.buf, pData, dataLength); // Copies data to the buffer
+	m_wsabuf.len = dataLength; // Sets the buffer length to the data length for send
 }
 
 void Buffer::ClearBuf() {

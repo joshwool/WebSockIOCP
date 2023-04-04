@@ -14,9 +14,9 @@ class Server {
 public:
 	Server(const char *port, const char *address, char *db_dir, int maxThreadCount, int maxBufNum);
 
-    bool Setup();
+    bool Setup(); // Setups the server
 
-    void Run();
+    void Run(); // Runs the server
 
 private:
     Socket m_listenSocket;

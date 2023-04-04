@@ -16,13 +16,12 @@ public:
 
     void ClearBuf(); // Clears the buffer of all contents
 
-    WSABUF *GetWSABUF();
+    WSABUF *GetWSABUF(); // Returns a pointer to buffer structure
 
-	Bufferpool *GetParentPool();
+	Bufferpool *GetParentPool(); // Returns a pointer to its parent pool
 private:
 	Bufferpool *m_parentPool;
 
-	size_t m_usedSize;
     size_t m_totalSize;
 	char *m_buffer;
     WSABUF m_wsabuf;

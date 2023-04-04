@@ -10,7 +10,7 @@ IoContext::IoContext(Buffer *buffer, Database *db, SOCKET connection)
 		m_connection(connection),
 		m_buffer(buffer),
 		m_db(db),
-		final(0) {
+		final(false) {
 }
 
 IoContext::~IoContext() {

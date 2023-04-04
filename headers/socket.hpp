@@ -7,7 +7,7 @@ class Socket {
 public:
     Socket();
     ~Socket();
-    void CloseSocket();
+    void CloseSocket(); // Closes the socket
 
     bool Create(const char* port, const char *address); // Resolves address and creates a socket
 
@@ -16,7 +16,6 @@ public:
 
     SOCKET Accept(); // Accepts new connections
 
-    SOCKET GetHandle();
 private:
     sockaddr m_address;
     int m_addrlen;

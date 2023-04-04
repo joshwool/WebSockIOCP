@@ -10,8 +10,8 @@ public:
     Threadpool(int threadCount, HANDLE iocPort);
     ~Threadpool();
 private:
-    std::vector<Thread*> m_threadVec;
-    int m_threadCount;
+    std::vector<Thread*> m_threadVec; // Vector of threads
+    int m_threadCount; // Thread count
 };
 
 #endif //WEBSOCKIOCP_THREADPOOL_HPP

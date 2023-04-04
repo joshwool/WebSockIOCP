@@ -21,7 +21,7 @@ bool Socket::Create(const char* port, const char *address) { // Resolves
     hints.ai_protocol = IPPROTO_TCP;
     hints.ai_flags = AI_PASSIVE;
 
-    int result = getaddrinfo(
+    int result = getaddrinfo( // Gets this address info of this computer
             address,
             port,
             &hints,
@@ -33,7 +33,7 @@ bool Socket::Create(const char* port, const char *address) { // Resolves
         return false;
     }
 
-    m_handle = WSASocketW(
+    m_handle = WSASocketW( // Creates a socket
             res->ai_family,
             res->ai_socktype,
             res->ai_protocol,
@@ -97,8 +97,4 @@ SOCKET Socket::Accept() { // Accepts connections on socket and returns connectio
 			std::cerr << "WSAAccept() failed: " << WSAGetLastError() << std::endl;
 		}
 	}
-}
-
-SOCKET Socket::GetHandle() {
-    return m_handle;
 }

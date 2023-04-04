@@ -1,7 +1,7 @@
 #include "iocp.hpp"
 
 IoCPort::IoCPort(int maxConcThreads) {
-    m_handle = CreateIoCompletionPort(
+    m_handle = CreateIoCompletionPort( // Create an IO completion port
             INVALID_HANDLE_VALUE,
             nullptr,
             0,
@@ -14,14 +14,14 @@ IoCPort::IoCPort(int maxConcThreads) {
 
 IoCPort::~IoCPort() {
     ClosePort();
-    PostCompletionPacket(0);
+    PostCompletionPacket(0); // Posts a 0 packet on port
 }
 
 void IoCPort::ClosePort() {
-    CloseHandle(m_handle);
+    CloseHandle(m_handle); // Closes the IoCPort
 }
 
-bool IoCPort::AssignSocket(SOCKET socket, ULONG_PTR socketContext) {
+bool IoCPort::AssignSocket(SOCKET socket, ULONG_PTR socketContext) { // Assigns a new connection to the IO Completion port
     m_handle = CreateIoCompletionPort(
             (HANDLE)socket,
             m_handle,
@@ -35,7 +35,7 @@ bool IoCPort::AssignSocket(SOCKET socket, ULONG_PTR socketContext) {
     return true;
 }
 
-void IoCPort::PostCompletionPacket(ULONG_PTR completionKey) {
+void IoCPort::PostCompletionPacket(ULONG_PTR completionKey) { // Manually post a completion packet
     if (PostQueuedCompletionStatus(
             m_handle,
             sizeof(completionKey),

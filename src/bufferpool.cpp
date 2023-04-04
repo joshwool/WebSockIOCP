@@ -21,11 +21,11 @@ void Bufferpool::BufferPlace(Buffer *buffer) { // Places buffer back in pool
 }
 
 Buffer *Bufferpool::BufferPop() { // Pops a buffer out of the pool and returns it
-	Buffer *buffer = m_buffers.back();
-	m_buffers.pop_back();
-	return buffer;
+	Buffer *buffer = m_buffers.back(); // Copies pointer to last buffer in vector to buffer
+	m_buffers.pop_back(); // Removes last buffer ptr from the pool
+	return buffer; // Returns a pointer to a buffer
 }
 
-int Bufferpool::BufferCount() { // Returns number of buffers currently in pool
+int Bufferpool::BufferCount() { // Returns number of buffers currently in pool, used for testing
 	return m_buffers.size();
 }
