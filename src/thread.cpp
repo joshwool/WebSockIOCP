@@ -173,8 +173,6 @@ DWORD WINAPI Thread::IoWork(LPVOID IoCPort) {
 
 							std::string response = GenerateResponse(payload, pIoContext->m_db); // Generates response
 
-							std::cout << response << std::endl;
-
 							if (response.length() > 65535) { // If length > 2 bytes then payload length in the 2nd byte of this frame will = 127, check docs for explanation
 								paylenSize = 6;
 								sendFormat.payloadLen = 127;
@@ -538,6 +536,8 @@ std::string Thread::GenerateResponse(char payload[], Database *db) {
 			std::string username = data["username"].get<std::string>();
 			std::string password = data["password"].get<std::string>();
 
+			std::cout << db->SelectCount("users", "username", username.c_str()) << std::endl;
+
 			if (db->SelectCount("users", "username", username.c_str())) { // Checks if user exists
 				char *query		 = "SELECT salt FROM users WHERE username = ?;";
 				std::string salt = db->SelectString(query, std::vector<std::string>({username})); // Gets salt from users table
@@ -554,7 +554,7 @@ std::string Thread::GenerateResponse(char payload[], Database *db) {
 					std::string sessionId = GenSessionID(db);
 
 					query = // Updates sessionId
-					  "UPDATE sessions SET session_id = ? WHERE user_id = (SELECT user_id FROM users WHERE username = ?);";
+					  "UPDATE sessions SET session_id = ? WHERE user_id = (SELECT id FROM users WHERE username = ?);";
 
 					if (db->Update(query, std::vector<std::string>({sessionId, username}))) {
 						response["sessionId"] = sessionId;
@@ -730,6 +730,7 @@ std::string Thread::GenerateResponse(char payload[], Database *db) {
 				std::string data_string = db->SelectString(query, values);
 
 				// Checks if there was a leaderboard entry
+				std::cout << data_string << std::endl;
 				if (data_string == "null") {
 					// If not then insert completed test data
 					query = "INSERT INTO leaderboard (user_id, username, test_data, type, number) SELECT sessions.user_id, users.username, ? AS test_data, ? AS type, ? AS number FROM sessions JOIN users ON sessions.user_id = users.id WHERE sessions.session_id = ?;";
